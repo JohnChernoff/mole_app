@@ -4,21 +4,16 @@ import 'package:web_socket_channel/status.dart' as status;
 class MoleSock {
   late final WebSocketChannel _channel;
 
-  MoleSock(address,onConnect) {
+  MoleSock(address,onConnect,onMsg) {
     _channel = WebSocketChannel.connect(
       Uri.parse(address),
     );
     _channel.ready.then((val){
       _channel.stream.listen((message) {
-        handleMsg(message);
+        onMsg(message);
       });
       onConnect();
     });
-  }
-
-  void handleMsg(msg) {
-    print("New Message: ");
-    print(msg);
   }
 
   void send(msg) {
