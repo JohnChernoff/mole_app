@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
@@ -13,19 +13,32 @@ abstract class MoleListener {
   void disconnected();
 }
 
+class MoleGame {
+  final String title;
+  String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  int time = 0;
+  List<dynamic> moves = [];
+  List<dynamic> teams = [];
+
+  MoleGame(this.title);
+}
+
 class MoleClient extends ChangeNotifier implements MoleListener {
   late MoleSock sock;
-  late String fen;
   ChessBoardController controller = ChessBoardController();
   bool orientWhite = true;
   int counter = 0;
+  Map<String,MoleGame> games = {};
+  MoleGame? currentGame;
   String lichessToken = "";
   SharedPreferences? prefs;
   String userName = "";
-  late Map<String,Function> functionMap;
+  Map<String,Function> functionMap = {};
+  bool confirmAdd = false;
+  bool confirmName = false;
 
   MoleClient(address) {
-    fen = controller.getFen(); //controller.addListener(() {});
+    //fen = controller.getFen(); //controller.addListener(() {});
     SharedPreferences.getInstance().then((sp) {
         prefs = sp;
         lichessToken = prefs?.getString('token') ?? "";
@@ -34,8 +47,14 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     });
     functionMap = {
       "log_OK" : handleLogin,
-      "games_update" : handleGameUpdate
+      "games_update" : handleGamesUpdate,
+      "game_update" : handleGameUpdate
     };
+  }
+
+  void switchGame(String title) {
+    currentGame = games[title]!;
+    notifyListeners();
   }
 
   void rndMove() {
@@ -52,21 +71,21 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     } else {
       controller.makeMove(from: move.fromAlgebraic, to: move.toAlgebraic);
     }
-    fen = controller.getFen();
+    currentGame!.fen = controller.getFen();
   }
 
   void handleMove() {
     print(controller.game.history.last.move.fromAlgebraic);
     print(controller.game.history.last.move.toAlgebraic);
     print(controller.game.history.last.move.promotion);
-    controller.loadFen(fen);
+    controller.loadFen(currentGame!.fen);
   }
 
   void flipBoard() {
     orientWhite = !orientWhite;
   }
 
-  void send(String type, { String data = "" }) {
+  void send(String type, { var data = "" }) {
     sock.send(jsonEncode( { "type": type, "data": data } ) );
   }
 
@@ -100,9 +119,64 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     print("Logged in: $userName");
   }
 
-  void handleGameUpdate(data) {
+  void handleGamesUpdate(json) {
     print("Games update:");
-    print(data);
+    for (var game in json) {
+        String title = game["title"];
+        print(title);
+        games.putIfAbsent(title, () {
+          MoleGame moleGame = MoleGame(title);
+          currentGame ??= moleGame;
+          return moleGame;
+        });
+    }
+  }
+
+  void handleGameUpdate(json) {
+    final title = json["title"];
+    final MoleGame? game = games[title]; if (game == null) return;
+    final currentFEN = json["currentFEN"];
+    final time = json["timeRemaining"];
+    final history = json["history"];
+
+    if (currentFEN != null) game.fen = currentFEN;
+    if (time != null && time > 0) _countdown(time,game);
+    if (history != null) _updateMoveHistory(json,game);
+    notifyListeners();
+  }
+
+  void _countdown(int time, MoleGame game) {
+    game.time = time; //TODO: implement timer
+  }
+
+  void _updateMoveHistory(data, MoleGame game) {
+    if (data["history"] != null) {
+      for (var votes in data["history"]) {
+        game.moves.clear();
+        game.moves.add(votes);
+      }
+    }
+    else if (data["move_votes"] != null) {
+      game.moves.add(data["move_votes"]);
+    }
+  }
+
+  void newGame(String title) {
+    print("Create game: $title");
+    send("newgame",data :{"game": title, "color": 0});
+  }
+
+  @override
+  void handleMsg(String msg) { print("Incoming msg: $msg");
+  final json = jsonDecode(msg);
+  String type = json["type"]; print("Handling: $type");
+  Function? fun = functionMap[type];
+  if (fun != null) {
+    fun(json["data"]);
+  } else {
+    print("Fucntion not found");
+  }
+  notifyListeners();
   }
 
   @override
@@ -116,18 +190,7 @@ class MoleClient extends ChangeNotifier implements MoleListener {
   }
 
   @override
-  void handleMsg(String msg) {
-    final json = jsonDecode(msg);
-    String type = json["type"]; print("Handling: $type");
-    Function? fun = functionMap[type];
-    if (fun != null) fun(json["data"]);
-    else print("Fucntion not found");
-    notifyListeners();
-  }
-
-  @override
   void loggedIn(String token) {
-
   }
 
 }

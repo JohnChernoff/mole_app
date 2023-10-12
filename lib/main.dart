@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_chess_board/flutter_chess_board.dart';
+import 'package:mole_app/src/chess_page.dart';
+import 'package:mole_app/src/lobby_page.dart';
+import 'package:mole_app/src/login_page.dart';
 import 'package:mole_app/src/mole_client.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +51,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-enum Pages { login,chess,chat,options }
+enum Pages { login,chess,lobby,chat,options }
 
 class _MyHomePageState extends State<MyHomePage> {
 
@@ -69,6 +71,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case Pages.chess:
         page = ChessPage(client);
+        break;
+      case Pages.lobby:
+        page = LobbyPage(client);
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
@@ -108,6 +113,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       icon: Icon(Icons.table_bar),
                       label: 'Chess',
                     ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.local_bar),
+                      label: 'Lobby',
+                    ),
                   ],
                   currentIndex: selectedIndex,
                   onTap: (value) {
@@ -124,97 +133,3 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
-
-
-
-class ChessPage extends StatelessWidget {
-
-  MoleClient client;
-  ChessPage(this.client, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    //var client = context.watch<MoleClient>();
-    // This method is rerun every time setState is called
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Center(
-      // Center is a layout widget. It takes a single child and positions it
-      // in the middle of the parent.
-      child: Column(
-        // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-        // action in the IDE, or press "p" in the console), to see the
-        // wireframe for each widget.
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: <Widget>[
-          ChessBoard(
-            onMove: client.handleMove,
-            size: double.tryParse(MainAxisSize.max.toString()),
-            controller: client.controller,
-            boardColor: BoardColor.green,
-            boardOrientation: client.orientWhite
-                ? PlayerColor.white
-                : PlayerColor.black,
-          ),
-          const Text(
-            'You have pushed the button this many times:',
-          ),
-          Text(
-            '${client.counter}',
-            style: Theme
-                .of(context)
-                .textTheme
-                .headlineMedium,
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.black,
-              backgroundColor: Colors.amber,
-            ),
-            onPressed: () { client.rndMove(); },
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.question_mark_rounded),
-                Text(" Random Move"),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => { client.flipBoard()},
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.invert_colors),
-                Text(" Flip"),
-              ],
-            ),
-          )
-        ],
-      ),
-    );
-  }
-}
-
-class LoginPage extends StatelessWidget {
-
-  MoleClient client;
-  LoginPage(this.client, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-
-    return Center(
-      child: Column(
-          children: [
-            ElevatedButton(
-              onPressed: client.lichessToken == "" ? client.loginWithLichess : client.logoutFromLichess,
-              child: client.lichessToken == "" ? const Text("Login with Lichess") : const Text("Logout"),
-            ),
-          ]
-      ),
-    );
-  }
-}
-
