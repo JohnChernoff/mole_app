@@ -32,32 +32,8 @@ class ChessPage extends StatelessWidget {
                 ? PlayerColor.white
                 : PlayerColor.black,
           ),
-          const Text(
-            'You have pushed the button this many times:',
-          ),
-          Text(
-            '${client.counter}',
-            style: Theme
-                .of(context)
-                .textTheme
-                .headlineMedium,
-          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              foregroundColor: Colors.black,
-              backgroundColor: Colors.amber,
-            ),
-            onPressed: () { client.rndMove(); },
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.question_mark_rounded),
-                Text(" Random Move"),
-              ],
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () => { client.flipBoard()},
+            onPressed: () { client.flipBoard(); },
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: <Widget>[

@@ -3,10 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:mole_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'chat_page.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
-import 'package:flutter_chess_board/flutter_chess_board.dart';
+import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
 
 abstract class MoleListener {
   void handleMsg(String msg);
@@ -20,18 +19,17 @@ class MoleGame {
   String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
   int time = 0;
   List<dynamic> moves = [];
-  List<dynamic> teams = [];
   List<dynamic> chat = [];
+  dynamic jsonData;
   MoleGame(this.title);
 }
 
 class MoleClient extends ChangeNotifier implements MoleListener {
   static const String dummyTitle= "?";
+  MoleGame currentGame = MoleGame(dummyTitle);
   ChessBoardController controller = ChessBoardController();
   bool orientWhite = true;
-  int counter = 0;
   Map<String,MoleGame> games = {};
-  MoleGame currentGame = MoleGame(dummyTitle);
   String lichessToken = "";
   SharedPreferences? prefs;
   String userName = "";
@@ -60,12 +58,12 @@ class MoleClient extends ChangeNotifier implements MoleListener {
 
   void switchGame(String title) {
     currentGame = games[title]!;
-    controller.loadFen(currentGame.fen);
-    notifyListeners();
+    //controller.loadFen(currentGame.fen);
+    //notifyListeners();
+    send("update",data:title);
   }
 
   void rndMove() {
-    counter++;
     List<Move> moves = controller.getPossibleMoves();
     var move =
         controller.getPossibleMoves().elementAt(Random().nextInt(moves.length));
@@ -90,6 +88,7 @@ class MoleClient extends ChangeNotifier implements MoleListener {
 
   void flipBoard() {
     orientWhite = !orientWhite;
+    notifyListeners();
   }
 
   void send(String type, { var data = "" }) {
@@ -168,11 +167,9 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     send(cmd,data: currentGame.title);
   }
 
-  void handleGamesUpdate(json) {
-    print("Games update:");
+  void handleGamesUpdate(json) { //print("Games update: $json");
     for (var game in json) {
-        String title = game["title"];
-        print(title);
+        String title = game["title"]; //print(title);
         games.putIfAbsent(title, () {
           MoleGame moleGame = MoleGame(title);
           if (currentGame.title == dummyTitle) currentGame = moleGame;
@@ -182,9 +179,9 @@ class MoleClient extends ChangeNotifier implements MoleListener {
   }
 
   void handleGameUpdate(json) {
-    final title = json["title"];
+    final title = json["title"]; //print("Updating: $title");
     final MoleGame? game = games[title]; if (game == null) return;
-    final currentFEN = json["currentFEN"];
+    final currentFEN = json["currentFEN"]; print("Current FEN: $currentFEN");
     final time = json["timeRemaining"];
     final history = json["history"];
     if (currentFEN != null) {
@@ -193,7 +190,7 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     }
     if (time != null && time > 0) _countdown(time,game);
     if (history != null) _updateMoveHistory(json,game);
-    notifyListeners();
+    games[title]?.jsonData = json;
   }
 
 
@@ -240,15 +237,6 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     }
     notifyListeners();
       if (type == "chat" || type == "serv_msg" || type == "game_msg") {
-      if (ChatPage.scrollController.hasClients) {
-        Future.delayed(const Duration(milliseconds: 500), () {
-          ChatPage.scrollController.animateTo(
-            ChatPage.scrollController.position.maxScrollExtent,
-            curve: Curves.easeOut,
-            duration: const Duration(milliseconds: 300),
-          );
-        });
-      }
     }
   }
 
@@ -292,5 +280,19 @@ class ConfirmDialog extends StatelessWidget {
   }
 }
 
+extension HexColor on Color {
+  /// String is in the format "aabbcc" or "ffaabbcc" with an optional leading "#".
+  static Color fromHex(String hexString) {
+    final buffer = StringBuffer();
+    if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+    buffer.write(hexString.replaceFirst('#', ''));
+    return Color(int.parse(buffer.toString(), radix: 16));
+  }
 
-
+  /// Prefixes a hash sign if [leadingHashSign] is set to `true` (default is `true`).
+  String toHex({bool leadingHashSign = true}) => '${leadingHashSign ? '#' : ''}'
+      '${alpha.toRadixString(16).padLeft(2, '0')}'
+      '${red.toRadixString(16).padLeft(2, '0')}'
+      '${green.toRadixString(16).padLeft(2, '0')}'
+      '${blue.toRadixString(16).padLeft(2, '0')}';
+}
