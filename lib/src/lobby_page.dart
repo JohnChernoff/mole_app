@@ -12,7 +12,7 @@ class LobbyPage extends StatelessWidget {
       child: Column(children: [
         const Text("Select Game:"),
         DropdownButton(
-            value: client.currentGame?.title,
+            value: client.currentGame.title == MoleClient.dummyTitle ? null : client.currentGame.title,
             items:
             client.games.keys.map<DropdownMenuItem<String>>((String value) {
               return DropdownMenuItem<String>(
@@ -26,10 +26,13 @@ class LobbyPage extends StatelessWidget {
         ElevatedButton(
             onPressed: () => getTitle(context).then((title) => client.newGame(title)),
             child: const Text("New Game")),
+        ElevatedButton(
+            onPressed: () => client.startCurrentGame(),
+            child: const Text("Start Game")),
       ]),
     );
   }
-  
+
   Future<String> getTitle(BuildContext context) async {
     TextEditingController titleControl = TextEditingController();
     return await showDialog(

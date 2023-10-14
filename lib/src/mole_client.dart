@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:mole_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'chat_page.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
 import 'package:flutter_chess_board/flutter_chess_board.dart';
@@ -19,23 +21,23 @@ class MoleGame {
   int time = 0;
   List<dynamic> moves = [];
   List<dynamic> teams = [];
-
+  List<dynamic> chat = [];
   MoleGame(this.title);
 }
 
 class MoleClient extends ChangeNotifier implements MoleListener {
-  late MoleSock sock;
+  static const String dummyTitle= "?";
   ChessBoardController controller = ChessBoardController();
   bool orientWhite = true;
   int counter = 0;
   Map<String,MoleGame> games = {};
-  MoleGame? currentGame;
+  MoleGame currentGame = MoleGame(dummyTitle);
   String lichessToken = "";
   SharedPreferences? prefs;
   String userName = "";
   Map<String,Function> functionMap = {};
-  bool confirmAdd = false;
-  bool confirmName = false;
+  bool confirmAI = false;
+  late MoleSock sock;
 
   MoleClient(address) {
     //fen = controller.getFen(); //controller.addListener(() {});
@@ -48,12 +50,17 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     functionMap = {
       "log_OK" : handleLogin,
       "games_update" : handleGamesUpdate,
-      "game_update" : handleGameUpdate
+      "game_update" : handleGameUpdate,
+      "status" : handleStatus,
+      "serv_msg" : handleGameMsg,
+      "game_msg" : handleGameMsg,
+      "chat" : handleChat
     };
   }
 
   void switchGame(String title) {
     currentGame = games[title]!;
+    controller.loadFen(currentGame.fen);
     notifyListeners();
   }
 
@@ -71,14 +78,14 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     } else {
       controller.makeMove(from: move.fromAlgebraic, to: move.toAlgebraic);
     }
-    currentGame!.fen = controller.getFen();
+    currentGame.fen = controller.getFen();
   }
 
   void handleMove() {
     print(controller.game.history.last.move.fromAlgebraic);
     print(controller.game.history.last.move.toAlgebraic);
     print(controller.game.history.last.move.promotion);
-    controller.loadFen(currentGame!.fen);
+    controller.loadFen(currentGame.fen);
   }
 
   void flipBoard() {
@@ -119,6 +126,48 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     print("Logged in: $userName");
   }
 
+  void handleStatus(data) async {
+    BuildContext? ctx = globalNavigatorKey.currentContext; if (ctx == null) return;
+    String msg = data["msg"];
+    if (msg == "ready") {
+      gameCmd("startGame");
+    } else if (msg == "insufficient") {
+      if (await showDialog(
+          context: ctx,
+          builder: (BuildContext context) {
+            return const Center(child: ConfirmDialog("Add AI?"));
+          })) {
+        gameCmd("startgame");
+      }
+    }
+  }
+
+  void handleChat(data) {
+    if (data["source"] == "serv") {
+      data["msg"] = "${data["user"]}: ${data["msg"]}";
+    }
+    else {
+      data["msg"] = "${data["player"]?["user"]?["name"]}: ${data["msg"]}";
+    }
+    handleGameMsg(data);
+  }
+
+  void handleGameMsg(data) {
+    print("Game Message: ${data["msg"]}");
+    final title = data["source"]; if (title == null) return;
+    MoleGame? game = games[title]; if (game == null) return;
+    game.chat.add({
+      "msg": data["msg"],
+      "player": data["player"]?["user"]?["name"] ?? "serv",
+      "color": data["player"]?["play_col"] ?? "#FFFFFF"
+    });
+
+  }
+
+  void gameCmd(String cmd) {
+    send(cmd,data: currentGame.title);
+  }
+
   void handleGamesUpdate(json) {
     print("Games update:");
     for (var game in json) {
@@ -126,7 +175,7 @@ class MoleClient extends ChangeNotifier implements MoleListener {
         print(title);
         games.putIfAbsent(title, () {
           MoleGame moleGame = MoleGame(title);
-          currentGame ??= moleGame;
+          if (currentGame.title == dummyTitle) currentGame = moleGame;
           return moleGame;
         });
     }
@@ -138,12 +187,16 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     final currentFEN = json["currentFEN"];
     final time = json["timeRemaining"];
     final history = json["history"];
-
-    if (currentFEN != null) game.fen = currentFEN;
+    if (currentFEN != null) {
+      game.fen = currentFEN;
+      if (currentGame == game) controller.loadFen(game.fen);
+    }
     if (time != null && time > 0) _countdown(time,game);
     if (history != null) _updateMoveHistory(json,game);
     notifyListeners();
   }
+
+
 
   void _countdown(int time, MoleGame game) {
     game.time = time; //TODO: implement timer
@@ -166,17 +219,37 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     send("newgame",data :{"game": title, "color": 0});
   }
 
-  @override
-  void handleMsg(String msg) { print("Incoming msg: $msg");
-  final json = jsonDecode(msg);
-  String type = json["type"]; print("Handling: $type");
-  Function? fun = functionMap[type];
-  if (fun != null) {
-    fun(json["data"]);
-  } else {
-    print("Fucntion not found");
+  void startCurrentGame() {
+    send("status",data: currentGame.title);
   }
-  notifyListeners();
+
+  void sendChat(String msg) {
+    send("chat",data: { "msg": msg, "source": currentGame.title });
+  }
+
+  @override
+  void handleMsg(String msg) { //print("Incoming msg: $msg");
+    final json = jsonDecode(msg);
+    String type = json["type"];
+    //print("Handling: $type");
+    Function? fun = functionMap[type];
+    if (fun != null) {
+      fun(json["data"]);
+    } else {
+      //print("Function not found");
+    }
+    notifyListeners();
+      if (type == "chat" || type == "serv_msg" || type == "game_msg") {
+      if (ChatPage.scrollController.hasClients) {
+        Future.delayed(const Duration(milliseconds: 500), () {
+          ChatPage.scrollController.animateTo(
+            ChatPage.scrollController.position.maxScrollExtent,
+            curve: Curves.easeOut,
+            duration: const Duration(milliseconds: 300),
+          );
+        });
+      }
+    }
   }
 
   @override
@@ -194,3 +267,30 @@ class MoleClient extends ChangeNotifier implements MoleListener {
   }
 
 }
+
+class ConfirmDialog extends StatelessWidget {
+  final String txt; //final Function onOK;
+  const ConfirmDialog(this.txt, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialog(
+      children: [
+        Text(txt),
+        SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(context,true);
+            },
+            child: const Text('OK')),
+        SimpleDialogOption(
+            onPressed: () {
+              Navigator.pop(context,false);
+            },
+            child: const Text('Cancel')),
+      ],
+    );
+  }
+}
+
+
+

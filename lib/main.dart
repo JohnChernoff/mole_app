@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:mole_app/src/chat_page.dart';
 import 'package:mole_app/src/chess_page.dart';
 import 'package:mole_app/src/lobby_page.dart';
 import 'package:mole_app/src/login_page.dart';
 import 'package:mole_app/src/mole_client.dart';
 import 'package:provider/provider.dart';
 
+final globalNavigatorKey = GlobalKey<NavigatorState>();
+
 main()  {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(const MoleApp());
 }
 
@@ -19,6 +23,7 @@ class MoleApp extends StatelessWidget {
         create: (context) => MoleClient("ws://localhost:5555"),
            //MoleClient("wss://molechess.com/server"),
         child: MaterialApp(
+          navigatorKey: globalNavigatorKey,
           title: 'Mole Chess',
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
@@ -51,7 +56,7 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-enum Pages { login,chess,lobby,chat,options }
+enum Pages { chess,lobby,chat,options,login }
 
 class _MyHomePageState extends State<MyHomePage> {
 
@@ -74,6 +79,9 @@ class _MyHomePageState extends State<MyHomePage> {
         break;
       case Pages.lobby:
         page = LobbyPage(client);
+        break;
+      case Pages.chat:
+        page = ChatPage(client);
         break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
@@ -105,10 +113,10 @@ class _MyHomePageState extends State<MyHomePage> {
               SafeArea(
                 child: BottomNavigationBar(
                   items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.login),
-                      label: 'Login',
-                    ),
+                    //BottomNavigationBarItem(
+                    //  icon: Icon(Icons.login),
+                    //  label: 'Login',
+                    //),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.table_bar),
                       label: 'Chess',
@@ -116,6 +124,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     BottomNavigationBarItem(
                       icon: Icon(Icons.local_bar),
                       label: 'Lobby',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.chat),
+                      label: 'Chat',
                     ),
                   ],
                   currentIndex: selectedIndex,
@@ -133,3 +145,4 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 }
+
