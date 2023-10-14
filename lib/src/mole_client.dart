@@ -58,32 +58,20 @@ class MoleClient extends ChangeNotifier implements MoleListener {
 
   void switchGame(String title) {
     currentGame = games[title]!;
-    //controller.loadFen(currentGame.fen);
-    //notifyListeners();
     send("update",data:title);
   }
 
-  void rndMove() {
-    List<Move> moves = controller.getPossibleMoves();
-    var move =
-        controller.getPossibleMoves().elementAt(Random().nextInt(moves.length));
-    final promotion = move.promotion;
-    if (promotion != null) {
-      controller.makeMoveWithPromotion(
-          from: move.fromAlgebraic,
-          to: move.toAlgebraic,
-          pieceToPromoteTo: promotion.name);
-    } else {
-      controller.makeMove(from: move.fromAlgebraic, to: move.toAlgebraic);
-    }
-    currentGame.fen = controller.getFen();
-  }
-
   void handleMove() {
-    print(controller.game.history.last.move.fromAlgebraic);
-    print(controller.game.history.last.move.toAlgebraic);
-    print(controller.game.history.last.move.promotion);
+    String move = controller.game.history.last.move.fromAlgebraic + controller.game.history.last.move.toAlgebraic;
+    String prom =  controller.game.history.last.move.promotion?.toString() ?? "";
     controller.loadFen(currentGame.fen);
+    print("Sending: ${move + prom}"); //print(controller.game.history.last.move.promotion);
+    send("move",data: {
+      "move" : move,
+      "game" : currentGame.title,
+      "promotion" : prom
+    });
+
   }
 
   void flipBoard() {

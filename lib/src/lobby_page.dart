@@ -89,7 +89,7 @@ class LobbyPage extends StatelessWidget {
         }
       }
     }
-    for (dynamic player in players) { print("Player: $player");
+    for (dynamic player in players) { //print("Player: $player");
       String pName = player["user"]["name"];
       Color pColor = HexColor.fromHex(player["play_col"]);
       rows.add(DataRow(cells: [
