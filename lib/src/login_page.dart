@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-
 import 'mole_client.dart';
 
 class LoginPage extends StatelessWidget {
 
-  MoleClient client;
-  LoginPage(this.client, {super.key});
+  final MoleClient client;
+  const LoginPage(this.client, {super.key});
 
   @override
   Widget build(BuildContext context) {

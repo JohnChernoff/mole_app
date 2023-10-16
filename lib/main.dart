@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mole_app/src/chat_page.dart';
 import 'package:mole_app/src/chess_page.dart';
+import 'package:mole_app/src/history_page.dart';
 import 'package:mole_app/src/lobby_page.dart';
 import 'package:mole_app/src/login_page.dart';
 import 'package:mole_app/src/mole_client.dart';
@@ -10,18 +11,18 @@ final globalNavigatorKey = GlobalKey<NavigatorState>();
 
 main()  {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MoleApp());
+  runApp(MoleApp());
 }
 
+//note: no longer const (does it matter?)
 class MoleApp extends StatelessWidget {
-  const MoleApp({super.key});
-
+  MoleApp({super.key});
+  MoleClient client = MoleClient("ws://localhost:5555");
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
-        create: (context) => MoleClient("ws://localhost:5555"),
-           //MoleClient("wss://molechess.com/server"),
+        create: (context) => client, //MoleClient("wss://molechess.com/server"),
         child: MaterialApp(
           navigatorKey: globalNavigatorKey,
           title: 'Mole Chess',
@@ -29,7 +30,7 @@ class MoleApp extends StatelessWidget {
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
             useMaterial3: true,
           ),
-          home: const MyHomePage(title: 'Mole Chess!'),
+          home: MoleHomePage(title: 'Mole Chess!',client: client),
         ),
       );
   }
@@ -38,8 +39,9 @@ class MoleApp extends StatelessWidget {
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class MoleHomePage extends StatefulWidget {
+  MoleClient client;
+  MoleHomePage({super.key, required this.title, required this.client});
 
   // This widget is the home page of your application. It is stateful, meaning
   // that it has a State object (defined below) that contains fields that affect
@@ -53,19 +55,24 @@ class MyHomePage extends StatefulWidget {
   final String title;
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<MoleHomePage> createState() => _MoleHomePageState();
 }
 
-enum Pages { chess,lobby,chat,options,login }
+enum Pages { history,chess,lobby,chat,options,login }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MoleHomePageState extends State<MoleHomePage> {
 
+  _MoleHomePageState() {
+    _countdownLoop(500);
+  }
+
+  bool countdown = false;
   var selectedIndex = 0;
   Pages selectedPage = Pages.login;
 
   @override
   Widget build(BuildContext context) {
-    var client = context.watch<MoleClient>();
+    var client = context.watch<MoleClient>(); // Provider.of(context);
     var colorScheme = Theme
         .of(context)
         .colorScheme;
@@ -74,8 +81,11 @@ class _MyHomePageState extends State<MyHomePage> {
       case Pages.login:
         page = LoginPage(client);
         break;
+      case Pages.history:
+        page = HistoryPage(client);
+        break;
       case Pages.chess:
-        page = ChessPage(client);
+        page = ChessPage(client,this);
         break;
       case Pages.lobby:
         page = LobbyPage(client);
@@ -103,7 +113,7 @@ class _MyHomePageState extends State<MyHomePage> {
             .of(context)
             .colorScheme
             .inversePrimary,
-        title: Text(widget.title),
+        title: Text("${client.userName}: ${client.currentGame.title}"),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -112,11 +122,12 @@ class _MyHomePageState extends State<MyHomePage> {
               Expanded(child: mainArea),
               SafeArea(
                 child: BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
                   items: const [
-                    //BottomNavigationBarItem(
-                    //  icon: Icon(Icons.login),
-                    //  label: 'Login',
-                    //),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.history),
+                      label: 'History',
+                    ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.table_bar),
                       label: 'Chess',
@@ -143,6 +154,26 @@ class _MyHomePageState extends State<MyHomePage> {
           );
         },),
     );
+  }
+
+  void _countdownLoop(int millis) async {
+    print("Starting countdown");
+    countdown = true;
+    while(countdown) {
+      await Future.delayed(Duration(milliseconds: millis), () {
+        widget.client.currentGame.countdown["currentTime"] -= .5;
+        if (widget.client.currentGame.countdown["currentTime"] < 0) {
+          widget.client.currentGame.countdown["currentTime"] = 0.0;
+        }
+        else {
+          if (selectedPage == Pages.chess) {
+           //print("tick: ${widget.client.currentGame.countdown.toString()}");
+            widget.client.notifyListeners();
+          }
+        }
+      });
+    }
+    print("Ending countdown");
   }
 }
 

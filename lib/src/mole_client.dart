@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:mole_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,7 +18,10 @@ abstract class MoleListener {
 class MoleGame {
   final String title;
   String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-  int time = 0;
+  dynamic countdown = {
+    "time": 0.0,
+    "currentTime": 0.0
+  };
   List<dynamic> moves = [];
   List<dynamic> chat = [];
   dynamic jsonData;
@@ -27,7 +31,9 @@ class MoleGame {
 class MoleClient extends ChangeNotifier implements MoleListener {
   static const String dummyTitle= "?";
   MoleGame currentGame = MoleGame(dummyTitle);
-  ChessBoardController controller = ChessBoardController();
+  ChessBoardController mainBoardController = ChessBoardController();
+  ChessBoardController historyBoardController = ChessBoardController();
+  CountDownController countDownController = CountDownController();
   bool orientWhite = true;
   Map<String,MoleGame> games = {};
   String lichessToken = "";
@@ -52,7 +58,8 @@ class MoleClient extends ChangeNotifier implements MoleListener {
       "status" : handleStatus,
       "serv_msg" : handleGameMsg,
       "game_msg" : handleGameMsg,
-      "chat" : handleChat
+      "chat" : handleChat,
+      "phase" : handlePhase
     };
   }
 
@@ -61,17 +68,25 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     send("update",data:title);
   }
 
+  void handlePhase(data) {
+    print(data["phase"]);
+    handleGameUpdate(data);
+  }
+
   void handleMove() {
-    String move = controller.game.history.last.move.fromAlgebraic + controller.game.history.last.move.toAlgebraic;
-    String prom =  controller.game.history.last.move.promotion?.toString() ?? "";
-    controller.loadFen(currentGame.fen);
+    String move = mainBoardController.game.history.last.move.fromAlgebraic + mainBoardController.game.history.last.move.toAlgebraic;
+    String prom =  mainBoardController.game.history.last.move.promotion?.toString() ?? "";
+    mainBoardController.loadFen(currentGame.fen);
     print("Sending: ${move + prom}"); //print(controller.game.history.last.move.promotion);
     send("move",data: {
       "move" : move,
       "game" : currentGame.title,
       "promotion" : prom
     });
+  }
 
+  String turnString() {
+    return currentGame.jsonData?["turn"] == 0 ? "Black" : "White";
   }
 
   void flipBoard() {
@@ -170,27 +185,39 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     final title = json["title"]; //print("Updating: $title");
     final MoleGame? game = games[title]; if (game == null) return;
     final currentFEN = json["currentFEN"]; print("Current FEN: $currentFEN");
-    final time = json["timeRemaining"];
+    final time = double.tryParse(json["timeRemaining"].toString());
     final history = json["history"];
     if (currentFEN != null) {
       game.fen = currentFEN;
-      if (currentGame == game) controller.loadFen(game.fen);
+      if (currentGame == game) mainBoardController.loadFen(game.fen);
     }
     if (time != null && time > 0) _countdown(time,game);
     if (history != null) _updateMoveHistory(json,game);
     games[title]?.jsonData = json;
   }
 
+  void _countdown(double time, MoleGame game) {
+    print("Countdown: $time");
+    if (time > game.countdown["currentTime"]) {
+      game.countdown["time"] = time;
+    }
+    game.countdown["currentTime"] = time;
+    //countDownController.start();
+  }
 
-
-  void _countdown(int time, MoleGame game) {
-    game.time = time; //TODO: implement timer
+  double getCountPercentage() {
+    double p = (currentGame.countdown["currentTime"]/currentGame.countdown["time"]);
+    if (p.isFinite) {
+      return p;
+    } else {
+      return 0;
+    }
   }
 
   void _updateMoveHistory(data, MoleGame game) {
     if (data["history"] != null) {
+      game.moves.clear();
       for (var votes in data["history"]) {
-        game.moves.clear();
         game.moves.add(votes);
       }
     }
@@ -275,6 +302,10 @@ extension HexColor on Color {
     if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
     buffer.write(hexString.replaceFirst('#', ''));
     return Color(int.parse(buffer.toString(), radix: 16));
+  }
+
+  static Color rndColor() {
+    return Color((Random().nextDouble() * 0xFFFFFF).toInt()).withOpacity(1.0);
   }
 
   /// Prefixes a hash sign if [leadingHashSign] is set to `true` (default is `true`).

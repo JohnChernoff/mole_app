@@ -41,6 +41,7 @@ dependencies:
   oauth2: ^2.0.2
   url_launcher: ^6.1.14
   shared_preferences: ^2.2.1
+  circular_countdown_timer: ^0.2.3
 
 
 dev_dependencies:

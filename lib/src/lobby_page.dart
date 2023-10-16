@@ -3,7 +3,7 @@ import 'mole_client.dart';
 
 class LobbyPage extends StatelessWidget {
 
-  MoleClient client;
+  final MoleClient client;
   LobbyPage(this.client, {super.key});
   final Map<int,Color> colorMap = {
     -1 : Colors.grey,
