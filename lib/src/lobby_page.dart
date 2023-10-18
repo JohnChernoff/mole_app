@@ -17,12 +17,12 @@ class LobbyPage extends StatelessWidget {
       child: Column(children: [
         const Text("Select Game:"),
         DropdownButton(
-            value: client.currentGame.title == MoleClient.dummyTitle ? null : client.currentGame.title,
+            value: !client.currentGame.exists || client.currentGame.title == MoleClient.dummyTitle ? null : client.currentGame.title,
             items:
-            client.games.keys.map<DropdownMenuItem<String>>((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
+            client.games.keys.map<DropdownMenuItem<String>>((String title) { //print("Adding: $title");
+                return DropdownMenuItem<String>(
+                value: title,
+                child: Text(title),
               );
             }).toList(),
             onChanged: (String? title) {
@@ -41,6 +41,12 @@ class LobbyPage extends StatelessWidget {
               onPressed: () => client.startCurrentGame(),
               child: const Text("Start Game")),
         ),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: ElevatedButton(
+              onPressed: () => client.leaveCurrentGame(),
+              child: const Text("Leave Game")),
+        ),
         Expanded(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(8),
@@ -48,7 +54,6 @@ class LobbyPage extends StatelessWidget {
             child: SingleChildScrollView(
               scrollDirection: Axis.vertical,
               child: DataTable(
-
                 columnSpacing: 16,
                   dataRowColor: MaterialStateProperty.resolveWith((Set states) {
                     return Colors.grey; //Theme.of(context).colorScheme.inversePrimary;
@@ -79,6 +84,7 @@ class LobbyPage extends StatelessWidget {
 
   List<DataRow> _gameRows() {
     List<DataRow> rows = List<DataRow>.empty(growable: true);
+    if (!client.currentGame.exists) return rows;
     final List<dynamic> bucket = client.currentGame.jsonData?["bucket"] ?? List.empty();
     final List<dynamic> teams = client.currentGame.jsonData?["teams"] ?? List.empty();
     List<dynamic> players = bucket;

@@ -11,13 +11,12 @@ final globalNavigatorKey = GlobalKey<NavigatorState>();
 
 main()  {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MoleApp());
+  runApp(MoleApp(client: MoleClient("ws://localhost:5555")));
 }
 
-//note: no longer const (does it matter?)
 class MoleApp extends StatelessWidget {
-  MoleApp({super.key});
-  MoleClient client = MoleClient("ws://localhost:5555");
+  final MoleClient client;
+  const MoleApp({super.key,required this.client});
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
@@ -27,10 +26,16 @@ class MoleApp extends StatelessWidget {
           navigatorKey: globalNavigatorKey,
           title: 'Mole Chess',
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+            colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
             useMaterial3: true,
+              /* scrollbarTheme: ScrollbarThemeData(
+                  thumbVisibility: MaterialStateProperty.all(true),
+                  thickness: MaterialStateProperty.all(8),
+                  thumbColor: MaterialStateProperty.all(Colors.black),
+                  radius: const Radius.circular(8),
+                  minThumbLength: 100), */
           ),
-          home: MoleHomePage(title: 'Mole Chess!',client: client),
+          home: MoleHomePage(client: client),
         ),
       );
   }
@@ -40,19 +45,8 @@ class MoleApp extends StatelessWidget {
 }
 
 class MoleHomePage extends StatefulWidget {
-  MoleClient client;
-  MoleHomePage({super.key, required this.title, required this.client});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  final MoleClient client;
+  const MoleHomePage({super.key, required this.client});
 
   @override
   State<MoleHomePage> createState() => _MoleHomePageState();
@@ -63,7 +57,7 @@ enum Pages { history,chess,lobby,chat,options,login }
 class _MoleHomePageState extends State<MoleHomePage> {
 
   _MoleHomePageState() {
-    _countdownLoop(500);
+    _countdownLoop(20);
   }
 
   bool countdown = false;
@@ -113,7 +107,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
             .of(context)
             .colorScheme
             .inversePrimary,
-        title: Text("${client.userName}: ${client.currentGame.title}"),
+        title: Text("${client.userName}: ${client.currentGame.exists ? client.currentGame.title : "-"}"),
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
@@ -161,7 +155,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
     countdown = true;
     while(countdown) {
       await Future.delayed(Duration(milliseconds: millis), () {
-        widget.client.currentGame.countdown["currentTime"] -= .5;
+        widget.client.currentGame.countdown["currentTime"] -= (millis/1000);
         if (widget.client.currentGame.countdown["currentTime"] < 0) {
           widget.client.currentGame.countdown["currentTime"] = 0.0;
         }

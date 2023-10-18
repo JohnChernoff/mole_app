@@ -8,13 +8,6 @@ import 'lichess_login.dart';
 import 'mole_sock.dart';
 import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
 
-abstract class MoleListener {
-  void handleMsg(String msg);
-  void loggedIn(String token);
-  void connected();
-  void disconnected();
-}
-
 class MoleGame {
   final String title;
   String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
@@ -25,10 +18,11 @@ class MoleGame {
   List<dynamic> moves = [];
   List<dynamic> chat = [];
   dynamic jsonData;
+  bool exists = true;
   MoleGame(this.title);
 }
 
-class MoleClient extends ChangeNotifier implements MoleListener {
+class MoleClient extends ChangeNotifier {
   static const String dummyTitle= "?";
   MoleGame currentGame = MoleGame(dummyTitle);
   ChessBoardController mainBoardController = ChessBoardController();
@@ -42,30 +36,47 @@ class MoleClient extends ChangeNotifier implements MoleListener {
   Map<String,Function> functionMap = {};
   bool confirmAI = false;
   late MoleSock sock;
+  bool isConnected = false;
+  bool isLoggedIn = false;
+  String address;
 
-  MoleClient(address) {
+  MoleClient(this.address) {
     //fen = controller.getFen(); //controller.addListener(() {});
     SharedPreferences.getInstance().then((sp) {
         prefs = sp;
         lichessToken = prefs?.getString('token') ?? "";
-        print("Connecting to $address");
-        sock = MoleSock(address,connected,handleMsg);
     });
     functionMap = {
-      "log_OK" : handleLogin,
+      "log_OK" : loggedIn,
       "games_update" : handleGamesUpdate,
       "game_update" : handleGameUpdate,
       "status" : handleStatus,
       "serv_msg" : handleGameMsg,
       "game_msg" : handleGameMsg,
       "chat" : handleChat,
-      "phase" : handlePhase
+      "phase" : handlePhase,
+      "no_log" : loggedOut,
+      "join" : handleJoin
     };
+    _connect();
+  }
+
+  void _connect() {
+    print("Connecting to $address");
+    sock = MoleSock(address,connected,handleMsg,disconnected);
   }
 
   void switchGame(String title) {
-    currentGame = games[title]!;
-    send("update",data:title);
+    if (games[title ?? ""] != null) {
+      currentGame = games[title]!;
+      send("update",data:title);
+    }
+  }
+
+  void handleJoin(data) {
+    print("Joining");
+    handleGameUpdate(data);
+    switchGame(data["title"]);
   }
 
   void handlePhase(data) {
@@ -123,24 +134,14 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     notifyListeners();
   }
 
-  void handleLogin(data) {
-    userName = data["name"];
-    print("Logged in: $userName");
-  }
-
   void handleStatus(data) async {
-    BuildContext? ctx = globalNavigatorKey.currentContext; if (ctx == null) return;
     String msg = data["msg"];
     if (msg == "ready") {
       gameCmd("startGame");
     } else if (msg == "insufficient") {
-      if (await showDialog(
-          context: ctx,
-          builder: (BuildContext context) {
-            return const Center(child: ConfirmDialog("Add AI?"));
-          })) {
-        gameCmd("startgame");
-      }
+      ask("Add AI?").then((ok)  { //print("OK: $ok");
+        if (ok) gameCmd("startgame");
+      });
     }
   }
 
@@ -171,19 +172,26 @@ class MoleClient extends ChangeNotifier implements MoleListener {
   }
 
   void handleGamesUpdate(json) { //print("Games update: $json");
-    for (var game in json) {
-        String title = game["title"]; //print(title);
-        games.putIfAbsent(title, () {
-          MoleGame moleGame = MoleGame(title);
-          if (currentGame.title == dummyTitle) currentGame = moleGame;
-          return moleGame;
-        });
+    for (MoleGame game in games.values) {
+      game.exists = false;
     }
+    for (var game in json) {
+      getGame(game["title"]).exists = true;
+    }
+    games.removeWhere((key, value) => !value.exists);
+  }
+
+  MoleGame getGame(String title) {
+    return games.putIfAbsent(title, () {
+      MoleGame moleGame = MoleGame(title);
+      if (currentGame.title == dummyTitle) currentGame = moleGame;
+      return moleGame;
+    });
   }
 
   void handleGameUpdate(json) {
     final title = json["title"]; //print("Updating: $title");
-    final MoleGame? game = games[title]; if (game == null) return;
+    final MoleGame game = getGame(title);
     final currentFEN = json["currentFEN"]; print("Current FEN: $currentFEN");
     final time = double.tryParse(json["timeRemaining"].toString());
     final history = json["history"];
@@ -193,7 +201,7 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     }
     if (time != null && time > 0) _countdown(time,game);
     if (history != null) _updateMoveHistory(json,game);
-    games[title]?.jsonData = json;
+    game.jsonData = json;
   }
 
   void _countdown(double time, MoleGame game) {
@@ -235,11 +243,14 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     send("status",data: currentGame.title);
   }
 
+  void leaveCurrentGame() {
+    send("partGame",data: currentGame.title);
+  }
+
   void sendChat(String msg) {
     send("chat",data: { "msg": msg, "source": currentGame.title });
   }
 
-  @override
   void handleMsg(String msg) { //print("Incoming msg: $msg");
     final json = jsonDecode(msg);
     String type = json["type"];
@@ -255,18 +266,40 @@ class MoleClient extends ChangeNotifier implements MoleListener {
     }
   }
 
-  @override
   void connected() {
+    isConnected = true;
     if (lichessToken != "") _login();
   }
 
-  @override
   void disconnected() {
-    // TODO: implement disconnected
+    isConnected = false; isLoggedIn = false;
+    print("Disconnected: $userName");
+    ask("Disconnected!  Log back in?").then((ok) {
+      if (ok) _connect();
+    });
   }
 
-  @override
-  void loggedIn(String token) {
+  void loggedIn(data) {
+    userName = data["name"]; print("Logged in: $userName");
+    isLoggedIn = true;
+  }
+
+  void loggedOut() {
+    print("Logged out: $userName");
+    isLoggedIn = false;
+    ask("Logged out!  Log back in?").then((ok) {
+      _login();
+    });
+  }
+
+  Future<bool> ask (String question) async {
+    BuildContext? ctx = globalNavigatorKey.currentContext;
+    if (ctx == null) return false;
+    return showDialog(
+        context: ctx,
+        builder: (BuildContext context) {
+          return Center(child: ConfirmDialog(question));
+        }).then((ok) => ok);
   }
 
 }
@@ -281,7 +314,7 @@ class ConfirmDialog extends StatelessWidget {
       children: [
         Text(txt),
         SimpleDialogOption(
-            onPressed: () {
+            onPressed: () { //print("True");
               Navigator.pop(context,true);
             },
             child: const Text('OK')),

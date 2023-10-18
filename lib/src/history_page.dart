@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
@@ -12,9 +11,23 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-
+  final ScrollController scrollControl = ScrollController();
   List<BoardArrow> boardArrows = List<BoardArrow>.empty(growable: true);
   String hoverTxt = "";
+  int movePly = 0;
+
+  void _handleScrollNotification() {
+    int move = (widget.client.currentGame.moves.length *
+        (scrollControl.position.pixels/scrollControl.position.maxScrollExtent)).floor() - 1;
+    newPosition(move);
+    //setHoverTxt(move);
+  }
+
+  @override
+  void initState() {
+    scrollControl.addListener(_handleScrollNotification);
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,6 +37,11 @@ class _HistoryPageState extends State<HistoryPage> {
       // wireframe for each widget.
       //mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
+        Container(
+            height: 25,
+            color: Theme.of(context).colorScheme.onTertiaryContainer,
+            child: Text(hoverTxt,style: const TextStyle(color: Colors.white),)
+        ),
         ChessBoard(
           size: double.tryParse(MainAxisSize.max.toString()),
           controller: widget.client.historyBoardController,
@@ -33,58 +51,97 @@ class _HistoryPageState extends State<HistoryPage> {
               ? PlayerColor.white
               : PlayerColor.black,
         ),
-        Container(
-            height: 50,
-            color: Theme.of(context).colorScheme.onTertiaryContainer,
-            child: Text(hoverTxt,style: const TextStyle(color: Colors.white),)
+        LimitedBox(
+          maxHeight: 20,
+          child: Scrollbar(
+              controller: scrollControl,
+              thumbVisibility: true,
+              trackVisibility: false,
+              thickness: 8,
+              child: ListView( //shrinkWrap: true,
+                scrollDirection: Axis.horizontal,
+                controller: scrollControl,
+                children: List.generate(widget.client.currentGame.moves.length,
+                    (index) {
+                  Color fromCol = index > 0
+                      ? HexColor.fromHex(widget.client.currentGame
+                          .moves[index - 1]["selected"]["player"]["play_col"])
+                      : Colors.black;
+                  Color toCol = HexColor.fromHex(widget.client.currentGame
+                      .moves[index]["selected"]["player"]["play_col"]);
+                  return SizedBox(
+                    width: 50,
+                    height: 20,
+                    //color: HexColor.fromHex(widget.client.currentGame.moves[index]["selected"]["player"]["play_col"]),
+                    child: CustomPaint(
+                        painter: InterpolatedSquare(fromCol, toCol)),
+                  );
+                }),
+              )),
         ),
-        Expanded(child: GridView(
-          shrinkWrap: true,
-          scrollDirection: Axis.vertical,
-          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: 150,
-            mainAxisExtent: 25,
+        Expanded(
+          child: GridView(
+            shrinkWrap: true,
+            scrollDirection: Axis.vertical,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 150,
+              mainAxisExtent: 25,
+            ),
+            children: List.generate(widget.client.currentGame.moves.length,
+                    (index) {
+                  Color playCol = HexColor.fromHex(widget.client.currentGame
+                      .moves[index]["selected"]["player"]["play_col"]
+                      .toString());
+                  String moveNum = (index ~/ 2 + 1).toString() +
+                      (index % 2 == 0 ? "." : "...");
+                  String moveStr = moveNum +
+                      widget.client.currentGame.moves[index]["selected"]["move"]["san"];
+                  return Container(
+                      decoration: BoxDecoration(
+                          color: movePly == index ? Colors.green : Colors.white,
+                          border: Border.all(width: 1)), // color: playCol),
+                      child: TextButton(
+                        onPressed: () {
+                          newPosition(index);
+                          setHoverTxt(index);
+                        },
+                        onHover: (b) {
+                          setHoverTxt(index);
+                        },
+                        child: Text(moveStr,
+                            style: const TextStyle(color:Colors.black)
+                        ),
+                      ));
+                }),
           ),
-          children: List.generate(widget.client.currentGame.moves.length, (index) {
-            Color playCol = HexColor.fromHex(widget.client.currentGame.moves[index]["selected"]["player"]["play_col"].toString());
-            String moveNum = (index ~/ 2 + 1).toString() + (index % 2 == 0 ? "." : "...");
-            String moveStr = moveNum + widget.client.currentGame.moves[index]["selected"]["move"]["san"];
-            return Container(
-                decoration:
-                BoxDecoration(border: Border.all(width: 1), color: playCol),
-                child: TextButton(
-                  onPressed: () {
-                    newPosition(index);
-                  },
-                  onHover: (b) {
-                    String newTxt = getVoteTxt(index);
-                    setState(() {
-                      hoverTxt = newTxt;
-                    });
-                  },
-                  child: Text(moveStr,
-                      style: TextStyle(
-                          color: playCol == Colors.black
-                              ? Colors.white
-                              : Colors.black)),
-                ));
-          }),
-        ), ),
+        )
       ],
     );
   }
 
+  void setHoverTxt(index) {
+    String newTxt = getVoteTxt(index);
+    setState(() {
+      hoverTxt = newTxt;
+    });
+  }
+
   void newPosition(index) {
-    String fen = widget.client.currentGame.moves[index]["fen"].toString();
+    movePly = index < 0 ? 0 : index;
+    String fen = widget.client.currentGame.moves[movePly]["fen"].toString();
     widget.client.historyBoardController.loadFen(fen);
     List<BoardArrow> arrows = List<BoardArrow>.empty(growable: true);
-    int i = index+1; if (i < widget.client.currentGame.moves.length) {
+    int i = movePly + 1;
+    if (i < widget.client.currentGame.moves.length) {
       for (var move in getMoves(i)) {
-        arrows.add(BoardArrow(from: move["from"],to: move["to"],color: move["color"].withOpacity(move["selected"] ? .67 : .36)));
+        arrows.add(BoardArrow(
+            from: move["from"],
+            to: move["to"],
+            color: move["color"].withOpacity(move["selected"] ? .67 : .36)));
       }
     }
     setState(() {
-        boardArrows = arrows;
+      boardArrows = arrows;
     });
   }
 
@@ -115,6 +172,27 @@ class _HistoryPageState extends State<HistoryPage> {
       voteTxt += "$pName : ${move["san"]} | ";
     }
     return voteTxt;
+  }
+
+}
+
+class InterpolatedSquare extends CustomPainter {
+  Color fromCol;
+  Color toCol;
+  InterpolatedSquare(this.fromCol,this.toCol);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    Paint p = Paint();
+    for (double x=0; x<size.width; x++) {
+      p.color = Color.lerp(fromCol, toCol, x/size.width)!;
+      canvas.drawLine(Offset(x,0),Offset(x,size.width),p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 
 }
