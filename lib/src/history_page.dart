@@ -42,23 +42,14 @@ class _HistoryPageState extends State<HistoryPage> {
             color: Theme.of(context).colorScheme.onTertiaryContainer,
             child: Text(hoverTxt,style: const TextStyle(color: Colors.white),)
         ),
-        ChessBoard(
-          size: double.tryParse(MainAxisSize.max.toString()),
-          controller: widget.client.historyBoardController,
-          boardColor: BoardColor.green,
-          arrows: boardArrows,
-          boardOrientation: widget.client.orientWhite
-              ? PlayerColor.white
-              : PlayerColor.black,
-        ),
         LimitedBox(
           maxHeight: 20,
           child: Scrollbar(
               controller: scrollControl,
               thumbVisibility: true,
-              trackVisibility: false,
+              trackVisibility: true,
               thickness: 8,
-              child: ListView( //shrinkWrap: true,
+              child: ListView( shrinkWrap: true,
                 scrollDirection: Axis.horizontal,
                 controller: scrollControl,
                 children: List.generate(widget.client.currentGame.moves.length,
@@ -69,23 +60,28 @@ class _HistoryPageState extends State<HistoryPage> {
                       : Colors.black;
                   Color toCol = HexColor.fromHex(widget.client.currentGame
                       .moves[index]["selected"]["player"]["play_col"]);
-                  return SizedBox(
-                    width: 50,
-                    height: 20,
-                    //color: HexColor.fromHex(widget.client.currentGame.moves[index]["selected"]["player"]["play_col"]),
-                    child: CustomPaint(
-                        painter: InterpolatedSquare(fromCol, toCol)),
-                  );
+                  return SizedBox(width: 40,height: 20, child: CustomPaint(painter: InterpolatedSquare(fromCol, toCol)),
+                      //return Container(width: 20, height: 20, color: toCol,
+                      );
                 }),
               )),
         ),
+        ChessBoard(
+          size: double.tryParse(MainAxisSize.max.toString()),
+          controller: widget.client.historyBoardController,
+          boardColor: BoardColor.green,
+          arrows: boardArrows,
+          boardOrientation: widget.client.orientWhite
+              ? PlayerColor.white
+              : PlayerColor.black,
+        ),
         Expanded(
           child: GridView(
-            shrinkWrap: true,
+            shrinkWrap: false,
             scrollDirection: Axis.vertical,
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
               maxCrossAxisExtent: 150,
-              mainAxisExtent: 25,
+              mainAxisExtent: 50,
             ),
             children: List.generate(widget.client.currentGame.moves.length,
                     (index) {
@@ -97,20 +93,23 @@ class _HistoryPageState extends State<HistoryPage> {
                   String moveStr = moveNum +
                       widget.client.currentGame.moves[index]["selected"]["move"]["san"];
                   return Container(
-                      decoration: BoxDecoration(
-                          color: movePly == index ? Colors.green : Colors.white,
-                          border: Border.all(width: 1)), // color: playCol),
-                      child: TextButton(
-                        onPressed: () {
-                          newPosition(index);
-                          setHoverTxt(index);
-                        },
-                        onHover: (b) {
-                          setHoverTxt(index);
-                        },
-                        child: Text(moveStr,
-                            style: const TextStyle(color:Colors.black)
-                        ),
+                  decoration: BoxDecoration(
+                      color: movePly == index ? Colors.green : playCol, //Colors.white,
+                      border: Border.all(width: 1)), // color: playCol),
+                  child: TextButton(
+                    onPressed: () {
+                      newPosition(index);
+                      setHoverTxt(index);
+                    },
+                    onHover: (b) {
+                      setHoverTxt(index);
+                    },
+                    child: Text(moveStr,
+                        //overflow: TextOverflow.visible,
+                        //textScaleFactor: 2.5,
+                        style: const TextStyle(//fontFamily: "FancyFonts",
+                            fontSize: 20,
+                            color: Colors.black)),
                       ));
                 }),
           ),
@@ -182,17 +181,18 @@ class InterpolatedSquare extends CustomPainter {
   InterpolatedSquare(this.fromCol,this.toCol);
 
   @override
-  void paint(Canvas canvas, Size size) {
+  void paint(Canvas canvas, Size size) { //print(size.width); print("$fromCol -> $toCol");
     Paint p = Paint();
     for (double x=0; x<size.width; x++) {
+      //print(x); p.blendMode = BlendMode.xor;
       p.color = Color.lerp(fromCol, toCol, x/size.width)!;
-      canvas.drawLine(Offset(x,0),Offset(x,size.width),p);
+      canvas.drawLine(Offset(x,0),Offset(x,size.height),p);
     }
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) {
-    return false;
+    return true;
   }
 
 }

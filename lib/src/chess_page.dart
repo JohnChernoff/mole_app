@@ -1,5 +1,6 @@
 //import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
+import '../main.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
 
@@ -17,6 +18,19 @@ class ChessPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           ElevatedButton(
+            onPressed: () {
+              homePage.setPage(Pages.history);
+              client.notifyListeners();
+              },
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(Icons.history),
+                Text(" History"),
+              ],
+            ),
+          ),
+          ElevatedButton(
             onPressed: () { client.flipBoard(); },
             child: const Row(
               mainAxisSize: MainAxisSize.min,
@@ -27,7 +41,7 @@ class ChessPage extends StatelessWidget {
             ),
           ),
           ChessBoard(
-            onMove: client.handleMove,
+            onMove: client.sendMove,
             size: double.tryParse(MainAxisSize.max.toString()),
             controller: client.mainBoardController,
             boardColor: BoardColor.green,

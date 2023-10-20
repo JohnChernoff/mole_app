@@ -39,6 +39,7 @@ class MoleClient extends ChangeNotifier {
   bool isConnected = false;
   bool isLoggedIn = false;
   String address;
+  dynamic homePage;
 
   MoleClient(this.address) {
     //fen = controller.getFen(); //controller.addListener(() {});
@@ -50,6 +51,7 @@ class MoleClient extends ChangeNotifier {
       "log_OK" : loggedIn,
       "games_update" : handleGamesUpdate,
       "game_update" : handleGameUpdate,
+      "move" : handleMove,
       "status" : handleStatus,
       "serv_msg" : handleGameMsg,
       "game_msg" : handleGameMsg,
@@ -59,6 +61,10 @@ class MoleClient extends ChangeNotifier {
       "join" : handleJoin
     };
     _connect();
+  }
+
+  void setHomePage(dynamic page) {
+    homePage = page;
   }
 
   void _connect() {
@@ -84,7 +90,13 @@ class MoleClient extends ChangeNotifier {
     handleGameUpdate(data);
   }
 
-  void handleMove() {
+  void handleMove(data) { //print("New move: ${data['move']}");
+    final title = data["title"]; //print("Updating: $title");
+    final MoleGame game = getGame(title);
+    _updateMoveHistory(data,game);
+  }
+
+  void sendMove() {
     String move = mainBoardController.game.history.last.move.fromAlgebraic + mainBoardController.game.history.last.move.toAlgebraic;
     String prom =  mainBoardController.game.history.last.move.promotion?.toString() ?? "";
     mainBoardController.loadFen(currentGame.fen);
@@ -110,12 +122,15 @@ class MoleClient extends ChangeNotifier {
   }
 
   void logoutFromLichess() {
-    prefs?.remove("token"); lichessToken = ""; _logout();
+    if (lichessToken != "") {
+      LichessOauth.deleteToken(lichessToken);
+      prefs?.remove("token"); lichessToken = "";
+    }
   }
 
   void loginWithLichess() {
     if (lichessToken == "") {
-      LichessLogin((String tok) {
+      LichessOauth.getToken((String tok) {
         lichessToken = tok;
         prefs?.setString("token",lichessToken);
         _login();
@@ -125,6 +140,8 @@ class MoleClient extends ChangeNotifier {
   }
 
   void _login() {
+    homePage.selectedPage = Pages.lobby;
+    print("Logging in with token");
     send("login", data: lichessToken);
     notifyListeners();
   }
@@ -155,8 +172,7 @@ class MoleClient extends ChangeNotifier {
     handleGameMsg(data);
   }
 
-  void handleGameMsg(data) {
-    print("Game Message: ${data["msg"]}");
+  void handleGameMsg(data) {  //print("Game Message: ${data["msg"]}");
     final title = data["source"]; if (title == null) return;
     MoleGame? game = games[title]; if (game == null) return;
     game.chat.add({
@@ -164,7 +180,6 @@ class MoleClient extends ChangeNotifier {
       "player": data["player"]?["user"]?["name"] ?? "serv",
       "color": data["player"]?["play_col"] ?? "#FFFFFF"
     });
-
   }
 
   void gameCmd(String cmd) {
@@ -179,16 +194,20 @@ class MoleClient extends ChangeNotifier {
       getGame(game["title"]).exists = true;
     }
     games.removeWhere((key, value) => !value.exists);
+    if (currentGame.title == dummyTitle && games.keys.isNotEmpty) {
+      switchGame(games.keys.first);
+    }
   }
 
   MoleGame getGame(String title) {
     return games.putIfAbsent(title, () {
-      MoleGame moleGame = MoleGame(title);
-      if (currentGame.title == dummyTitle) currentGame = moleGame;
-      return moleGame;
+      //MoleGame moleGame = ;
+      //if (currentGame.title == dummyTitle) currentGame = moleGame;
+      return MoleGame(title);
     });
   }
 
+  //called in the event of a new phase or in response to an update request
   void handleGameUpdate(json) {
     final title = json["title"]; //print("Updating: $title");
     final MoleGame game = getGame(title);
@@ -224,18 +243,21 @@ class MoleClient extends ChangeNotifier {
 
   void _updateMoveHistory(data, MoleGame game) {
     if (data["history"] != null) {
+      print("Updating history: ${game.title}");
       game.moves.clear();
       for (var votes in data["history"]) {
         game.moves.add(votes);
       }
     }
     else if (data["move_votes"] != null) {
-      game.moves.add(data["move_votes"]);
+      if (game.moves.length + 1 == data["ply"]) {
+        print("Adding to movelist: ${data["move"]}");
+        game.moves.add(data["move_votes"]);
+      }
     }
   }
 
-  void newGame(String title) {
-    print("Create game: $title");
+  void newGame(String title) { //print("Create game: $title");
     send("newgame",data :{"game": title, "color": 0});
   }
 
@@ -267,8 +289,9 @@ class MoleClient extends ChangeNotifier {
   }
 
   void connected() {
+    print("Connected!");
     isConnected = true;
-    if (lichessToken != "") _login();
+    //loginWithLichess(); //if (lichessToken != "") _login();
   }
 
   void disconnected() {

@@ -3,15 +3,18 @@ import 'package:mole_app/src/chat_page.dart';
 import 'package:mole_app/src/chess_page.dart';
 import 'package:mole_app/src/history_page.dart';
 import 'package:mole_app/src/lobby_page.dart';
-import 'package:mole_app/src/login_page.dart';
 import 'package:mole_app/src/mole_client.dart';
+import 'package:mole_app/src/options_page.dart';
+import 'package:mole_app/src/splash_page.dart';
 import 'package:provider/provider.dart';
 
 final globalNavigatorKey = GlobalKey<NavigatorState>();
 
 main()  {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(MoleApp(client: MoleClient("ws://localhost:5555")));
+  //runApp(MoleApp(client: MoleClient("ws://localhost:5555")));
+  runApp(MoleApp(client: MoleClient("ws://10.0.2.2:5555")));
+  //runApp(MoleApp(client: MoleClient("wss://molechess.com/server")));
 }
 
 class MoleApp extends StatelessWidget {
@@ -50,19 +53,31 @@ class MoleHomePage extends StatefulWidget {
 
   @override
   State<MoleHomePage> createState() => _MoleHomePageState();
+
+  whee() {
+  }
 }
 
-enum Pages { history,chess,lobby,chat,options,login }
+enum Pages { chess,lobby,chat,options,history,splash }
 
 class _MoleHomePageState extends State<MoleHomePage> {
 
-  _MoleHomePageState() {
+  @override
+  initState() {
+    super.initState();
     _countdownLoop(20);
+    widget.client.setHomePage(this);
   }
 
   bool countdown = false;
   var selectedIndex = 0;
-  Pages selectedPage = Pages.login;
+  Pages selectedPage = Pages.splash;
+
+  setPage(Pages page) {
+    setState(() {
+      selectedPage = page;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -72,9 +87,6 @@ class _MoleHomePageState extends State<MoleHomePage> {
         .colorScheme;
     Widget page;
     switch (selectedPage) {
-      case Pages.login:
-        page = LoginPage(client);
-        break;
       case Pages.history:
         page = HistoryPage(client);
         break;
@@ -87,6 +99,11 @@ class _MoleHomePageState extends State<MoleHomePage> {
       case Pages.chat:
         page = ChatPage(client);
         break;
+      case Pages.options:
+        page = OptionsPage(client);
+        break;
+      case Pages.splash:
+        page = SplashPage(client);
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
@@ -119,10 +136,6 @@ class _MoleHomePageState extends State<MoleHomePage> {
                   type: BottomNavigationBarType.fixed,
                   items: const [
                     BottomNavigationBarItem(
-                      icon: Icon(Icons.history),
-                      label: 'History',
-                    ),
-                    BottomNavigationBarItem(
                       icon: Icon(Icons.table_bar),
                       label: 'Chess',
                     ),
@@ -133,6 +146,10 @@ class _MoleHomePageState extends State<MoleHomePage> {
                     BottomNavigationBarItem(
                       icon: Icon(Icons.chat),
                       label: 'Chat',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.settings),
+                      label: 'Options',
                     ),
                   ],
                   currentIndex: selectedIndex,
@@ -153,18 +170,21 @@ class _MoleHomePageState extends State<MoleHomePage> {
   void _countdownLoop(int millis) async {
     print("Starting countdown");
     countdown = true;
+    int tick = 0;
     while(countdown) {
-      await Future.delayed(Duration(milliseconds: millis), () {
-        widget.client.currentGame.countdown["currentTime"] -= (millis/1000);
+      int t = selectedPage == Pages.chess ? millis : 1000;
+      await Future.delayed(Duration(milliseconds: t), () {
+        widget.client.currentGame.countdown["currentTime"] -= (t/1000);
         if (widget.client.currentGame.countdown["currentTime"] < 0) {
           widget.client.currentGame.countdown["currentTime"] = 0.0;
         }
         else {
           if (selectedPage == Pages.chess) {
-           //print("tick: ${widget.client.currentGame.countdown.toString()}");
             widget.client.notifyListeners();
           }
         }
+       //print("tick: ${tick++}");
+       //print("tick: ${widget.client.currentGame.countdown.toString()}");
       });
     }
     print("Ending countdown");

@@ -42,6 +42,7 @@ dependencies:
   url_launcher: ^6.1.14
   shared_preferences: ^2.2.1
   circular_countdown_timer: ^0.2.3
+  webview_flutter: ^4.4.1
 
 
 dev_dependencies:
@@ -96,4 +97,13 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/custom-fonts/#from-packages
+
+  assets:
+    - assets/fonts/
+
+  fonts:
+    - family: FancyFonts
+      fonts:
+        - asset: assets/fonts/Chomsky.otf
+
 

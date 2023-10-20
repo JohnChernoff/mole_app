@@ -9,7 +9,8 @@ class MoleSock {
     _channel = WebSocketChannel.connect(
       Uri.parse(address),
     );
-    _channel.ready.then((val){
+    _channel.ready.then((val) {
+      print("Listening...");
       _channel.stream.listen((message) {
         onMsg(message);
       }, onDone: () {
@@ -21,6 +22,9 @@ class MoleSock {
         onClose();
       });
       onConnect();
+    }).onError((error, stackTrace) {
+      print("Websocket connection error: ${error.toString()}");
+      print(stackTrace);
     });
   }
 
