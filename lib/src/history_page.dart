@@ -11,7 +11,7 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  final ScrollController scrollControl = ScrollController();
+  final ScrollController scrollControl = ScrollController(); //unused
   List<BoardArrow> boardArrows = List<BoardArrow>.empty(growable: true);
   String hoverTxt = "";
   int movePly = 0;
@@ -20,12 +20,11 @@ class _HistoryPageState extends State<HistoryPage> {
     int move = (widget.client.currentGame.moves.length *
         (scrollControl.position.pixels/scrollControl.position.maxScrollExtent)).floor() - 1;
     newPosition(move);
-    //setHoverTxt(move);
   }
 
   @override
   void initState() {
-    scrollControl.addListener(_handleScrollNotification);
+    //scrollControl.addListener(_handleScrollNotification);
     super.initState();
   }
 
@@ -38,33 +37,12 @@ class _HistoryPageState extends State<HistoryPage> {
       //mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         Container(
-            height: 25,
+          alignment: Alignment.center,
+            height: 50,
             color: Theme.of(context).colorScheme.onTertiaryContainer,
-            child: Text(hoverTxt,style: const TextStyle(color: Colors.white),)
-        ),
-        LimitedBox(
-          maxHeight: 20,
-          child: Scrollbar(
-              controller: scrollControl,
-              thumbVisibility: true,
-              trackVisibility: true,
-              thickness: 8,
-              child: ListView( shrinkWrap: true,
-                scrollDirection: Axis.horizontal,
-                controller: scrollControl,
-                children: List.generate(widget.client.currentGame.moves.length,
-                    (index) {
-                  Color fromCol = index > 0
-                      ? HexColor.fromHex(widget.client.currentGame
-                          .moves[index - 1]["selected"]["player"]["play_col"])
-                      : Colors.black;
-                  Color toCol = HexColor.fromHex(widget.client.currentGame
-                      .moves[index]["selected"]["player"]["play_col"]);
-                  return SizedBox(width: 40,height: 20, child: CustomPaint(painter: InterpolatedSquare(fromCol, toCol)),
-                      //return Container(width: 20, height: 20, color: toCol,
-                      );
-                }),
-              )),
+            child: Text(hoverTxt,
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+            )
         ),
         ChessBoard(
           size: double.tryParse(MainAxisSize.max.toString()),
@@ -75,13 +53,24 @@ class _HistoryPageState extends State<HistoryPage> {
               ? PlayerColor.white
               : PlayerColor.black,
         ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(onPressed: () {
+              newPosition(movePly-1); setHoverTxt(movePly);
+            }, icon: const Icon(Icons.arrow_left)),
+            IconButton(onPressed: () {
+              newPosition(movePly+1); setHoverTxt(movePly);
+            }, icon: const Icon(Icons.arrow_right)),
+          ],
+        ),
         Expanded(
           child: GridView(
             shrinkWrap: false,
             scrollDirection: Axis.vertical,
             gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 150,
-              mainAxisExtent: 50,
+              maxCrossAxisExtent: 100,
+              mainAxisExtent: 36,
             ),
             children: List.generate(widget.client.currentGame.moves.length,
                     (index) {
@@ -94,7 +83,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       widget.client.currentGame.moves[index]["selected"]["move"]["san"];
                   return Container(
                   decoration: BoxDecoration(
-                      color: movePly == index ? Colors.green : playCol, //Colors.white,
+                      color: movePly == index ? Colors.black : playCol, //Colors.green : Colors.white,
                       border: Border.all(width: 1)), // color: playCol),
                   child: TextButton(
                     onPressed: () {
@@ -105,11 +94,10 @@ class _HistoryPageState extends State<HistoryPage> {
                       setHoverTxt(index);
                     },
                     child: Text(moveStr,
-                        //overflow: TextOverflow.visible,
-                        //textScaleFactor: 2.5,
-                        style: const TextStyle(//fontFamily: "FancyFonts",
-                            fontSize: 20,
-                            color: Colors.black)),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(  //fontFamily: "FancyFonts",
+                            fontSize: 16,
+                            color: movePly == index ? Colors.white : Colors.black)),
                       ));
                 }),
           ),
@@ -165,12 +153,12 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   String getVoteTxt(i) {
-    String voteTxt = " | ";
+    String voteTxt = "";
     for (var move in getMoves(i)) {
-      String pName = move["player"]; if (move["selected"]) pName += "(*)";
-      voteTxt += "$pName : ${move["san"]} | ";
+      String pName = move["player"]; //if (move["selected"]) pName += "(*)";
+      voteTxt += "$pName ${move["san"]} : ";
     }
-    return voteTxt;
+    return voteTxt.substring(0,voteTxt.length-2);
   }
 
 }
