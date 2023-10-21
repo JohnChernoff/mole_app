@@ -114,7 +114,10 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   void newPosition(index) {
+    if (widget.client.currentGame.moves.isEmpty) return;
     movePly = index < 0 ? 0 : index;
+    if (movePly >= widget.client.currentGame.moves.length) movePly = widget.client.currentGame.moves.length - 1;
+    if (movePly < 0) movePly = 0;
     String fen = widget.client.currentGame.moves[movePly]["fen"].toString();
     widget.client.historyBoardController.loadFen(fen);
     List<BoardArrow> arrows = List<BoardArrow>.empty(growable: true);
@@ -134,6 +137,7 @@ class _HistoryPageState extends State<HistoryPage> {
 
   List<dynamic> getMoves(i) {
     List<dynamic> moves = List<dynamic>.empty(growable: true);
+    if (widget.client.currentGame.moves.isEmpty) return moves;
     moves.add(getMove(widget.client.currentGame.moves[i]["selected"],true));
     for (var alt in widget.client.currentGame.moves[i]["alts"]) {
       moves.add(getMove(alt,false));
@@ -158,7 +162,7 @@ class _HistoryPageState extends State<HistoryPage> {
       String pName = move["player"]; //if (move["selected"]) pName += "(*)";
       voteTxt += "$pName ${move["san"]} : ";
     }
-    return voteTxt.substring(0,voteTxt.length-2);
+    return (voteTxt.length > 2) ? voteTxt.substring(0,voteTxt.length-2) : voteTxt;
   }
 
 }

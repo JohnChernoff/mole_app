@@ -1,8 +1,8 @@
+import 'package:mole_app/main.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter/material.dart';
-import 'package:mole_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
@@ -35,14 +35,14 @@ class MoleClient extends ChangeNotifier {
   String userName = "";
   Map<String,Function> functionMap = {};
   bool confirmAI = false;
-  late MoleSock sock;
   bool isConnected = false;
   bool isLoggedIn = false;
   String address;
-  dynamic homePage;
+  late MoleSock sock;
+  int lastUpdate = 0;
+  bool starting = true;
 
   MoleClient(this.address) {
-    //fen = controller.getFen(); //controller.addListener(() {});
     SharedPreferences.getInstance().then((sp) {
         prefs = sp;
         lichessToken = prefs?.getString('token') ?? "";
@@ -63,10 +63,6 @@ class MoleClient extends ChangeNotifier {
     _connect();
   }
 
-  void setHomePage(dynamic page) {
-    homePage = page;
-  }
-
   void _connect() {
     print("Connecting to $address");
     sock = MoleSock(address,connected,handleMsg,disconnected);
@@ -79,14 +75,12 @@ class MoleClient extends ChangeNotifier {
     }
   }
 
-  void handleJoin(data) {
-    print("Joining");
+  void handleJoin(data) { //print("Joining");
     handleGameUpdate(data);
     switchGame(data["title"]);
   }
 
-  void handlePhase(data) {
-    print(data["phase"]);
+  void handlePhase(data) { //print(data["phase"]);
     handleGameUpdate(data);
   }
 
@@ -140,7 +134,6 @@ class MoleClient extends ChangeNotifier {
   }
 
   void _login() {
-    homePage.selectedPage = Pages.lobby;
     print("Logging in with token");
     send("login", data: lichessToken);
     notifyListeners();
@@ -211,7 +204,7 @@ class MoleClient extends ChangeNotifier {
   void handleGameUpdate(json) {
     final title = json["title"]; //print("Updating: $title");
     final MoleGame game = getGame(title);
-    final currentFEN = json["currentFEN"]; print("Current FEN: $currentFEN");
+    final currentFEN = json["currentFEN"]; //print("Current FEN: $currentFEN");
     final time = double.tryParse(json["timeRemaining"].toString());
     final history = json["history"];
     if (currentFEN != null) {
@@ -223,13 +216,11 @@ class MoleClient extends ChangeNotifier {
     game.jsonData = json;
   }
 
-  void _countdown(double time, MoleGame game) {
-    print("Countdown: $time");
+  void _countdown(double time, MoleGame game) { //print("Countdown: $time");
     if (time > game.countdown["currentTime"]) {
       game.countdown["time"] = time;
     }
     game.countdown["currentTime"] = time;
-    //countDownController.start();
   }
 
   double getCountPercentage() {
@@ -248,11 +239,16 @@ class MoleClient extends ChangeNotifier {
       for (var votes in data["history"]) {
         game.moves.add(votes);
       }
+      lastUpdate = DateTime.timestamp().millisecondsSinceEpoch;
     }
     else if (data["move_votes"] != null) {
       if (game.moves.length + 1 == data["ply"]) {
-        print("Adding to movelist: ${data["move"]}");
+        //print("Adding to movelist: ${data["move"]}");
         game.moves.add(data["move_votes"]);
+      }
+      else if ((DateTime.timestamp().millisecondsSinceEpoch - lastUpdate) > 5000) {
+        print("Inconsistent move history, updating...");
+        send("update",data:game.title);
       }
     }
   }
@@ -291,7 +287,9 @@ class MoleClient extends ChangeNotifier {
   void connected() {
     print("Connected!");
     isConnected = true;
-    //loginWithLichess(); //if (lichessToken != "") _login();
+    if (!starting && lichessToken != "") {
+      _login();
+    } //else notify user somehow?
   }
 
   void disconnected() {
@@ -305,9 +303,10 @@ class MoleClient extends ChangeNotifier {
   void loggedIn(data) {
     userName = data["name"]; print("Logged in: $userName");
     isLoggedIn = true;
+    starting = false;
   }
 
-  void loggedOut() {
+  void loggedOut(data) {
     print("Logged out: $userName");
     isLoggedIn = false;
     ask("Logged out!  Log back in?").then((ok) {

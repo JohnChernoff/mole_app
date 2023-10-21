@@ -15,19 +15,26 @@ class LobbyPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(children: [
-        const Text("Select Game:"),
-        DropdownButton(
-            value: !client.currentGame.exists || client.currentGame.title == MoleClient.dummyTitle ? null : client.currentGame.title,
-            items:
-            client.games.keys.map<DropdownMenuItem<String>>((String title) { //print("Adding: $title");
-                return DropdownMenuItem<String>(
-                value: title,
-                child: Text(title),
-              );
-            }).toList(),
-            onChanged: (String? title) {
-              client.switchGame(title!);
-            }),
+        Row(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text("Select Game:"),
+            const SizedBox(width: 8,),
+            DropdownButton(
+                value: !client.currentGame.exists || client.currentGame.title == MoleClient.dummyTitle ? null : client.currentGame.title,
+                items:
+                client.games.keys.map<DropdownMenuItem<String>>((String title) { //print("Adding: $title");
+                  return DropdownMenuItem<String>(
+                    value: title,
+                    child: Text(title),
+                  );
+                }).toList(),
+                onChanged: (String? title) {
+                  client.switchGame(title!);
+                }),
+          ],
+        ),
         Padding(
           padding: const EdgeInsets.all(8),
           child: ElevatedButton(

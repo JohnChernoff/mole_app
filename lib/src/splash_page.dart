@@ -11,6 +11,7 @@ class SplashPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+
       children: [
         ElevatedButton(
             onPressed: () { client.loginWithLichess(); },

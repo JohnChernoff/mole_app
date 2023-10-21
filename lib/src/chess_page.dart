@@ -1,15 +1,13 @@
-//import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
-import '../main.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
 
 class ChessPage extends StatelessWidget {
 
   final MoleClient client;
-  final dynamic homePage;
-  bool countdown = false;
-  ChessPage(this.client, this.homePage, {super.key});
+  static bool history = false;
+
+  const ChessPage(this.client, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +17,8 @@ class ChessPage extends StatelessWidget {
         children: <Widget>[
           ElevatedButton(
             onPressed: () {
-              homePage.setPage(Pages.history);
+              //homePage.setPage(Pages.history);
+              history = true;
               client.notifyListeners();
               },
             child: const Row(
@@ -29,6 +28,42 @@ class ChessPage extends StatelessWidget {
                 Text(" History"),
               ],
             ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              ElevatedButton(
+                onPressed: () { client.send("resign",data: client.currentGame.title); },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.transit_enterexit),
+                    Text(" Resign"),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () { client.send("veto",data: { "game": client.currentGame.title, "confirm" : true}); },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.cancel),
+                    Text(" Veto"),
+                  ],
+                ),
+              ),
+              ElevatedButton(
+                onPressed: () { client.send("inspect",data: client.currentGame.title); },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    Icon(Icons.find_replace),
+                    Text(" Inspect"),
+                  ],
+                ),
+              ),
+            ],
           ),
           ElevatedButton(
             onPressed: () { client.flipBoard(); },

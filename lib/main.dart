@@ -8,13 +8,21 @@ import 'package:mole_app/src/options_page.dart';
 import 'package:mole_app/src/splash_page.dart';
 import 'package:provider/provider.dart';
 
+const remoteAddress = "wss://molechess.com/server";
+const localServer = true;
+enum Platforms { android, ios, windows, web }
+const platform = Platforms.android;
 final globalNavigatorKey = GlobalKey<NavigatorState>();
 
 main()  {
   WidgetsFlutterBinding.ensureInitialized();
-  //runApp(MoleApp(client: MoleClient("ws://localhost:5555")));
-  runApp(MoleApp(client: MoleClient("ws://10.0.2.2:5555")));
-  //runApp(MoleApp(client: MoleClient("wss://molechess.com/server")));
+  final address = switch(platform) {
+    Platforms.android => localServer ? "ws://10.0.2.2:5555" : remoteAddress,
+    Platforms.ios => localServer ? "ws://localhost:5555" : remoteAddress,
+    Platforms.windows => localServer ? "ws:/localhost:5555" : remoteAddress,
+    Platforms.web => localServer ? "ws:/localhost:5555" : remoteAddress,
+  };
+  runApp(MoleApp(client: MoleClient(address)));
 }
 
 class MoleApp extends StatelessWidget {
@@ -53,9 +61,6 @@ class MoleHomePage extends StatefulWidget {
 
   @override
   State<MoleHomePage> createState() => _MoleHomePageState();
-
-  whee() {
-  }
 }
 
 enum Pages { chess,lobby,chat,options,history,splash }
@@ -66,7 +71,6 @@ class _MoleHomePageState extends State<MoleHomePage> {
   initState() {
     super.initState();
     _countdownLoop(20);
-    widget.client.setHomePage(this);
   }
 
   bool countdown = false;
@@ -86,12 +90,18 @@ class _MoleHomePageState extends State<MoleHomePage> {
         .of(context)
         .colorScheme;
     Widget page;
+    if (selectedPage == Pages.splash && client.isLoggedIn) {
+      selectedPage = Pages.lobby;
+    }
+    else if (selectedPage == Pages.chess && ChessPage.history) {
+      selectedPage = Pages.history;
+    }
     switch (selectedPage) {
       case Pages.history:
         page = HistoryPage(client);
         break;
       case Pages.chess:
-        page = ChessPage(client,this);
+        page = ChessPage(client);
         break;
       case Pages.lobby:
         page = LobbyPage(client);
@@ -104,6 +114,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
         break;
       case Pages.splash:
         page = SplashPage(client);
+        break;
       default:
         throw UnimplementedError('no widget for $selectedIndex');
     }
@@ -157,6 +168,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
                     setState(() {
                       selectedIndex = value;
                       selectedPage = Pages.values.elementAt(selectedIndex);
+                      if (selectedPage == Pages.chess) ChessPage.history = false;
                     });
                   },
                 ),
@@ -168,9 +180,9 @@ class _MoleHomePageState extends State<MoleHomePage> {
   }
 
   void _countdownLoop(int millis) async {
-    print("Starting countdown");
+    print("Starting countdown"); //int tick = 0;
     countdown = true;
-    int tick = 0;
+
     while(countdown) {
       int t = selectedPage == Pages.chess ? millis : 1000;
       await Future.delayed(Duration(milliseconds: t), () {
