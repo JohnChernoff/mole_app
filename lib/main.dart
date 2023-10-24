@@ -51,8 +51,7 @@ class MoleApp extends StatelessWidget {
       );
   }
 
-  onConnected() {
-  }
+  //onConnected() {}
 }
 
 class MoleHomePage extends StatefulWidget {
@@ -168,7 +167,11 @@ class _MoleHomePageState extends State<MoleHomePage> {
                     setState(() {
                       selectedIndex = value;
                       selectedPage = Pages.values.elementAt(selectedIndex);
-                      if (selectedPage == Pages.chess) ChessPage.history = false;
+                      if (selectedPage == Pages.chess) {
+                        ChessPage.history = false;
+                      } else if (selectedPage == Pages.options) {
+                        widget.client.send("get_opt",data : widget.client.currentGame.title);
+                      }
                     });
                   },
                 ),

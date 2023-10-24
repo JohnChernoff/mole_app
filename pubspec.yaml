@@ -43,6 +43,7 @@ dependencies:
   shared_preferences: ^2.2.1
   circular_countdown_timer: ^0.2.3
   webview_flutter: ^4.4.1
+  numberpicker: ^2.1.2
 
 
 dev_dependencies:
@@ -99,6 +100,7 @@ flutter:
   # see https://flutter.dev/custom-fonts/#from-packages
 
   assets:
+    - assets/images/
     - assets/fonts/
 
   fonts:

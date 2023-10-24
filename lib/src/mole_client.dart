@@ -41,6 +41,7 @@ class MoleClient extends ChangeNotifier {
   late MoleSock sock;
   int lastUpdate = 0;
   bool starting = true;
+  Map<String, dynamic> options = {};
 
   MoleClient(this.address) {
     SharedPreferences.getInstance().then((sp) {
@@ -56,9 +57,15 @@ class MoleClient extends ChangeNotifier {
       "serv_msg" : handleGameMsg,
       "game_msg" : handleGameMsg,
       "chat" : handleChat,
+      "err_msg" : handleChat,
       "phase" : handlePhase,
       "no_log" : loggedOut,
-      "join" : handleJoin
+      "join" : handleJoin,
+      "role" : handleRole,
+      "defection" : handleDefection,
+      "rampage" : handleRampage,
+      "molebomb" : handleMolebomb,
+      "options" : handleOptions
     };
     _connect();
   }
@@ -72,6 +79,46 @@ class MoleClient extends ChangeNotifier {
     if (games[title ?? ""] != null) {
       currentGame = games[title]!;
       send("update",data:title);
+    }
+  }
+
+  void submitOptions() {
+    print(jsonEncode(options));
+    send("set_opt",data: options);
+  }
+
+  void handleOptions(data) {
+      options = data;
+      options.putIfAbsent("game", () => currentGame.title);
+  }
+
+  //TODO: fix server to work with these
+  void handleDefection(data) {
+    if (getGame(data["source"]) == currentGame) {
+      popup("${data["player"]["user"]["name"]} defects!",
+          imgFilename: "defection.png");
+    }
+  }
+
+  void handleRampage(data) {
+    if (getGame(data["source"]) == currentGame) {
+      popup("${data["player"]["user"]["name"]} rampages!",
+          imgFilename: "rampage.png");
+    }
+  }
+
+  void handleMolebomb(data) {
+    if (getGame(data["source"]) == currentGame) {
+      popup("${data["player"]["user"]["name"]} bombs!",
+          imgFilename: "molebomb.png");
+    }
+  }
+
+  void handleRole(data) {
+    MoleGame game = getGame(data["source"]);
+    if (game == currentGame) {
+      String role = data["msg"];
+      popup("You are the $role",imgFilename: "${role.toLowerCase()}.png");
     }
   }
 
@@ -149,7 +196,7 @@ class MoleClient extends ChangeNotifier {
     if (msg == "ready") {
       gameCmd("startGame");
     } else if (msg == "insufficient") {
-      ask("Add AI?").then((ok)  { //print("OK: $ok");
+      popup("Add AI?").then((ok)  { //print("OK: $ok");
         if (ok) gameCmd("startgame");
       });
     }
@@ -157,22 +204,26 @@ class MoleClient extends ChangeNotifier {
 
   void handleChat(data) {
     if (data["source"] == "serv") {
-      data["msg"] = "${data["user"]}: ${data["msg"]}";
+      data["msg"] = "${data["user"] ?? "Serv"}: ${data["msg"]}";
     }
     else {
-      data["msg"] = "${data["player"]?["user"]?["name"]}: ${data["msg"]}";
+      data["msg"] = "${data["player"]?["user"]?["name"] ?? "WTF"}: ${data["msg"]}";
     }
     handleGameMsg(data);
   }
 
   void handleGameMsg(data) {  //print("Game Message: ${data["msg"]}");
-    final title = data["source"]; if (title == null) return;
-    MoleGame? game = games[title]; if (game == null) return;
-    game.chat.add({
-      "msg": data["msg"],
-      "player": data["player"]?["user"]?["name"] ?? "serv",
-      "color": data["player"]?["play_col"] ?? "#FFFFFF"
-    });
+    MoleGame? game = games[data["source"]];
+    if (game == null) { //server message
+      popup(data["msg"]);
+    }
+    else {
+      game.chat.add({
+        "msg": data["msg"],
+        "player": data["player"]?["user"]?["name"] ?? "serv",
+        "color": data["player"]?["play_col"] ?? "#FFFFFF"
+      });
+    }
   }
 
   void gameCmd(String cmd) {
@@ -295,7 +346,7 @@ class MoleClient extends ChangeNotifier {
   void disconnected() {
     isConnected = false; isLoggedIn = false;
     print("Disconnected: $userName");
-    ask("Disconnected!  Log back in?").then((ok) {
+    popup("Disconnected!  Log back in?").then((ok) {
       if (ok) _connect();
     });
   }
@@ -309,25 +360,28 @@ class MoleClient extends ChangeNotifier {
   void loggedOut(data) {
     print("Logged out: $userName");
     isLoggedIn = false;
-    ask("Logged out!  Log back in?").then((ok) {
-      _login();
+    popup("Logged out!  Log back in?").then((ok) {
+      if (ok) _login();
     });
   }
 
-  Future<bool> ask (String question) async {
+  Future<bool> popup (String txt, { String? imgFilename }) async {
     BuildContext? ctx = globalNavigatorKey.currentContext;
     if (ctx == null) return false;
     return showDialog(
         context: ctx,
         builder: (BuildContext context) {
-          return Center(child: ConfirmDialog(question));
+          return Center(
+              child: imgFilename == null
+                  ? ConfirmDialog(txt)
+                  : NotificationDialog(txt, imgFilename));
         }).then((ok) => ok);
   }
 
 }
 
 class ConfirmDialog extends StatelessWidget {
-  final String txt; //final Function onOK;
+  final String txt;
   const ConfirmDialog(this.txt, {super.key});
 
   @override
@@ -345,6 +399,27 @@ class ConfirmDialog extends StatelessWidget {
               Navigator.pop(context,false);
             },
             child: const Text('Cancel')),
+      ],
+    );
+  }
+}
+
+class NotificationDialog extends StatelessWidget {
+  final String txt;
+  final String imageFilename;
+  const NotificationDialog(this.txt, this.imageFilename, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialog(
+      children: [
+        Text(txt),
+        Image.asset("assets/images/$imageFilename"),
+        SimpleDialogOption(
+            onPressed: () { //print("True");
+              Navigator.pop(context,true);
+            },
+            child: const Text('Continue')),
       ],
     );
   }
