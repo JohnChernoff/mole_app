@@ -3,7 +3,7 @@
     <application
         android:label="mole_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/moleicon">
         <activity
             android:name=".MainActivity"
             android:exported="true"

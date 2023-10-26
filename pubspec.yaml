@@ -106,6 +106,6 @@ flutter:
   fonts:
     - family: FancyFonts
       fonts:
-        - asset: assets/fonts/Chomsky.otf
+
 
 
