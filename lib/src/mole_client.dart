@@ -1,16 +1,20 @@
+import 'package:chessground/chessground.dart';
+import 'package:dartchess/dartchess.dart' hide Move;
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:mole_app/main.dart';
 import 'dart:convert';
 import 'dart:math';
-import 'package:circular_countdown_timer/circular_countdown_timer.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
-import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
+
+const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+enum SideToMove { white, black, none}
 
 class MoleGame {
   final String title;
-  String fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  String fen = initialFen;
   dynamic countdown = {
     "time": 0.0,
     "currentTime": 0.0
@@ -20,14 +24,15 @@ class MoleGame {
   dynamic jsonData;
   bool exists = true;
   MoleGame(this.title);
+
+  SideToMove sideToMove() {
+    return fen.split(" ")[1] == "w" ? SideToMove.white : SideToMove.black;
+  }
 }
 
 class MoleClient extends ChangeNotifier {
   static const String dummyTitle= "?";
   MoleGame currentGame = MoleGame(dummyTitle);
-  ChessBoardController mainBoardController = ChessBoardController();
-  ChessBoardController historyBoardController = ChessBoardController();
-  CountDownController countDownController = CountDownController();
   bool orientWhite = true;
   Map<String,MoleGame> games = {};
   String lichessToken = "";
@@ -137,16 +142,18 @@ class MoleClient extends ChangeNotifier {
     _updateMoveHistory(data,game);
   }
 
-  void sendMove() {
-    String move = mainBoardController.game.history.last.move.fromAlgebraic + mainBoardController.game.history.last.move.toAlgebraic;
-    String prom =  mainBoardController.game.history.last.move.promotion?.toString() ?? "";
-    mainBoardController.loadFen(currentGame.fen);
-    print("Sending: ${move + prom}"); //print(controller.game.history.last.move.promotion);
+  void sendMove(Move move, {bool? isDrop, bool? isPremove}) {
+    //print("Sending move: ${move.from}${move.to}");
+    final prom = move.promotion.toString(); //print(prom);
     send("move",data: {
-      "move" : move,
+      "move" : "${move.from}${move.to}",
       "game" : currentGame.title,
-      "promotion" : prom
+      "promotion" : prom == "null" ? null : prom
     });
+  }
+
+  IMap<String, ISet<String>> getLegalMoves() {
+    return algebraicLegalMoves(Chess.fromSetup(Setup.parseFen(currentGame.fen)));
   }
 
   String turnString() {
@@ -260,7 +267,7 @@ class MoleClient extends ChangeNotifier {
     final history = json["history"];
     if (currentFEN != null) {
       game.fen = currentFEN;
-      if (currentGame == game) mainBoardController.loadFen(game.fen);
+      //if (currentGame == game) mainBoardController.loadFen(game.fen);
     }
     if (time != null && time > 0) _countdown(time,game);
     if (history != null) _updateMoveHistory(json,game);

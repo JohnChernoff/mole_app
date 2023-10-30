@@ -9,7 +9,7 @@ import 'package:mole_app/src/splash_page.dart';
 import 'package:provider/provider.dart';
 
 const remoteAddress = "wss://molechess.com/server";
-const localServer = true;
+const localServer = false;
 enum Platforms { android, ios, windows, web }
 const platform = Platforms.android;
 final globalNavigatorKey = GlobalKey<NavigatorState>();
@@ -39,12 +39,6 @@ class MoleApp extends StatelessWidget {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
             useMaterial3: true,
-              /* scrollbarTheme: ScrollbarThemeData(
-                  thumbVisibility: MaterialStateProperty.all(true),
-                  thickness: MaterialStateProperty.all(8),
-                  thumbColor: MaterialStateProperty.all(Colors.black),
-                  radius: const Radius.circular(8),
-                  minThumbLength: 100), */
           ),
           home: MoleHomePage(client: client),
         ),
@@ -185,7 +179,6 @@ class _MoleHomePageState extends State<MoleHomePage> {
   void _countdownLoop(int millis) async {
     print("Starting countdown"); //int tick = 0;
     countdown = true;
-
     while(countdown) {
       int t = selectedPage == Pages.chess ? millis : 1000;
       await Future.delayed(Duration(milliseconds: t), () {

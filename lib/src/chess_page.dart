@@ -1,4 +1,4 @@
-import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
+import 'package:chessground/chessground.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
 
@@ -11,13 +11,14 @@ class ChessPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           ElevatedButton(
-            onPressed: () {
-              //homePage.setPage(Pages.history);
+            onPressed: () { //homePage.setPage(Pages.history);
               history = true;
               client.notifyListeners();
               },
@@ -75,24 +76,30 @@ class ChessPage extends StatelessWidget {
               ],
             ),
           ),
-          ChessBoard(
+          Board(
+            settings: const BoardSettings(
+              pieceAssets: PieceSet.californiaAssets,
+              colorScheme: BoardColorScheme.horsey
+            ),
+            size: screenWidth,
+            data: BoardData(
+              sideToMove: client.currentGame.sideToMove() == SideToMove.white ? Side.white : Side.black,
+              interactableSide: client.currentGame.sideToMove() == SideToMove.white ? InteractableSide.white : InteractableSide.black,
+              orientation: client.orientWhite ? Side.white : Side.black,
+              fen: client.currentGame.fen,
+              validMoves: client.getLegalMoves(),
+            ),
             onMove: client.sendMove,
-            size: double.tryParse(MainAxisSize.max.toString()),
-            controller: client.mainBoardController,
-            boardColor: BoardColor.green,
-            boardOrientation: client.orientWhite
-                ? PlayerColor.white
-                : PlayerColor.black,
           ),
-          Container(
-            color: client.currentGame.jsonData?["turn"] == 0
-                ? Colors.black //Color.lerp(Colors.white, Colors.black, client.getCountPercentage())
-                : Colors.white, //Color.lerp(Colors.black, Colors.white, client.getCountPercentage()),
+          SizedBox(
             height: 100,
             width: 100,
             child: Stack(
-              fit: StackFit.expand,
+              fit: StackFit.passthrough,
               children: [
+                CustomPaint(
+                  painter: ClockPainter(client.currentGame.jsonData?["turn"] == 0 ? Colors.black : Colors.white),
+                ),
                 CircularProgressIndicator(
                   strokeAlign: -1,
                   strokeWidth: 16,
@@ -103,17 +110,12 @@ class ChessPage extends StatelessWidget {
                 ),
                 Center(
                     child: Text(
-                  "${client.currentGame.countdown["currentTime"].floor()}",
-                  //${client.turnString()}:
+                  "${client.currentGame.countdown["currentTime"].floor()}", //${client.turnString()}:
                   style: TextStyle(
                     fontSize: client.currentGame.countdown["currentTime"] > 99
                         ? 24
                         : 42,
-                    color: client.currentGame.jsonData?["turn"] == 0
-                        ? Colors
-                            .white //Color.lerp(Colors.white, Colors.black, client.getCountPercentage())
-                        : Colors
-                            .black, //Color.lerp(Colors.black, Colors.white, client.getCountPercentage()),
+                    color: client.currentGame.jsonData?["turn"] == 0 ? Colors.white : Colors.black,
                   ),
                 )),
               ],
@@ -123,4 +125,21 @@ class ChessPage extends StatelessWidget {
       ),
     );
   }
+}
+
+class ClockPainter extends CustomPainter {
+
+  final Paint p = Paint();
+  ClockPainter(Color color) {
+    p.color = color;
+    p.style = PaintingStyle.fill;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) { //print("Size: $size");
+      canvas.drawCircle(Offset(size.width/2,size.width/2), size.shortestSide/2, p);
+  }
+
+  @override
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }

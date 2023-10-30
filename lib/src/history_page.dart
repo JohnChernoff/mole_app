@@ -1,4 +1,6 @@
-import 'package:flutter_chess_board/flutter_chess_board.dart' hide Color;
+import 'package:chessground/chessground.dart';
+import 'package:chessground/src/widgets/background.dart';
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
 
@@ -12,9 +14,32 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   final ScrollController scrollControl = ScrollController(); //unused
-  List<BoardArrow> boardArrows = List<BoardArrow>.empty(growable: true);
+  ISet<Shape>? boardArrows = ISet();
+  BoardTheme boardTheme = BoardTheme.blue;
+  BoardColorScheme boardColorScheme = const BoardColorScheme(
+      lightSquare: Colors.white54,
+      darkSquare: Colors.brown,
+      background: SolidColorBackground(
+        lightSquare: Colors.white,
+        darkSquare: Colors.brown,
+      ) ,
+      whiteCoordBackground: SolidColorBackground(
+        lightSquare: Colors.white54,
+        darkSquare: Colors.black12,
+      ) ,
+      blackCoordBackground: SolidColorBackground(
+        lightSquare: Colors.white,
+        darkSquare: Colors.blue,
+      ) ,
+      lastMove: HighlightDetails(solidColor: Colors.greenAccent),
+      selected: HighlightDetails(solidColor: Colors.greenAccent),
+      validMoves: Colors.red,
+      validPremoves: Colors.orange);
+
   String hoverTxt = "";
   int movePly = 0;
+  String fen = initialFen;
+
 
   void _handleScrollNotification() {
     int move = (widget.client.currentGame.moves.length *
@@ -23,18 +48,14 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   @override
-  void initState() {
-    //scrollControl.addListener(_handleScrollNotification);
+  void initState() { //scrollControl.addListener(_handleScrollNotification);
     super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
+    final double screenWidth = MediaQuery.of(context).size.width;
     return Column(
-      // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-      // action in the IDE, or press "p" in the console), to see the
-      // wireframe for each widget.
-      //mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
         Container(
           alignment: Alignment.center,
@@ -44,14 +65,18 @@ class _HistoryPageState extends State<HistoryPage> {
               style: const TextStyle(fontSize: 16, color: Colors.white),
             )
         ),
-        ChessBoard(
-          size: double.tryParse(MainAxisSize.max.toString()),
-          controller: widget.client.historyBoardController,
-          boardColor: BoardColor.green,
-          arrows: boardArrows,
-          boardOrientation: widget.client.orientWhite
-              ? PlayerColor.white
-              : PlayerColor.black,
+        Board(
+          settings: const BoardSettings(
+            colorScheme: BoardColorScheme.grey, //boardColorScheme,
+            pieceAssets: PieceSet.californiaAssets,
+          ),
+          size: screenWidth,
+          data: BoardData(
+            interactableSide: InteractableSide.none,
+            orientation: widget.client.orientWhite ? Side.white : Side.black,
+            fen: fen,
+            shapes: boardArrows,
+          ),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -118,16 +143,15 @@ class _HistoryPageState extends State<HistoryPage> {
     movePly = index < 0 ? 0 : index;
     if (movePly >= widget.client.currentGame.moves.length) movePly = widget.client.currentGame.moves.length - 1;
     if (movePly < 0) movePly = 0;
-    String fen = widget.client.currentGame.moves[movePly]["fen"].toString();
-    widget.client.historyBoardController.loadFen(fen);
-    List<BoardArrow> arrows = List<BoardArrow>.empty(growable: true);
+    fen = widget.client.currentGame.moves[movePly]["fen"].toString();
     int i = movePly + 1;
+    ISet<Shape> arrows = ISet();
     if (i < widget.client.currentGame.moves.length) {
       for (var move in getMoves(i)) {
-        arrows.add(BoardArrow(
-            from: move["from"],
-            to: move["to"],
-            color: move["color"].withOpacity(move["selected"] ? .67 : .36)));
+        arrows = arrows.add(
+            Arrow(color: move["color"].withOpacity(move["selected"] ? .67 : .36),
+                orig: move["from"],
+                dest: move["to"]));
       }
     }
     setState(() {
