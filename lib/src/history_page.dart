@@ -13,7 +13,7 @@ class HistoryPage extends StatefulWidget {
 
 class _HistoryPageState extends State<HistoryPage> {
   ISet<Shape>? boardArrows = ISet();
-  String hoverTxt = "";
+  List<Widget> hoverVotes = List.empty(growable: true);
   int movePly = 0;
   String fen = initialFen;
 
@@ -29,10 +29,11 @@ class _HistoryPageState extends State<HistoryPage> {
       children: <Widget>[
         Container(
           alignment: Alignment.center,
-            height: 50,
+            height: 36,
             color: Theme.of(context).colorScheme.onTertiaryContainer,
-            child: Text(hoverTxt,
-              style: const TextStyle(fontSize: 16, color: Colors.white),
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: hoverVotes,
             )
         ),
         Board(
@@ -52,10 +53,10 @@ class _HistoryPageState extends State<HistoryPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(onPressed: () {
-              newPosition(movePly-1); setHoverTxt(movePly);
+              newPosition(movePly-1); setHoverVotes(movePly);
             }, icon: const Icon(Icons.arrow_left)),
             IconButton(onPressed: () {
-              newPosition(movePly+1); setHoverTxt(movePly);
+              newPosition(movePly+1); setHoverVotes(movePly);
             }, icon: const Icon(Icons.arrow_right)),
           ],
         ),
@@ -78,20 +79,20 @@ class _HistoryPageState extends State<HistoryPage> {
                       widget.client.currentGame.moves[index]["selected"]["move"]["san"];
                   return Container(
                   decoration: BoxDecoration(
-                      color: movePly == index ? Colors.black : playCol, //Colors.green : Colors.white,
+                      color: movePly == index ? Colors.green : Colors.white, //Colors.black : playCol,
                       border: Border.all(width: 1)), // color: playCol),
                   child: TextButton(
                     onPressed: () {
                       newPosition(index);
-                      setHoverTxt(index);
+                      setHoverVotes(index);
                     },
                     onHover: (b) {
-                      setHoverTxt(index);
+                      setHoverVotes(index);
                     },
                     child: Text(moveStr,
                         textAlign: TextAlign.center,
                         style: TextStyle(  //fontFamily: "FancyFonts",
-                            fontSize: 16,
+                            fontSize: 12,
                             color: movePly == index ? Colors.white : Colors.black)),
                       ));
                 }),
@@ -101,10 +102,19 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  void setHoverTxt(index) {
-    String newTxt = getVoteTxt(index);
+  void setHoverVotes(index) {
+    final moves = getMoves(index);
+    final votes = List.generate(
+        moves.length,
+        (index) => Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Text(
+                "${moves[index]['player']}: ${moves[index]['san']}",
+                style: TextStyle(color: moves[index]["color"]),
+              ),
+            ));
     setState(() {
-      hoverTxt = newTxt;
+      hoverVotes = votes;
     });
   }
 
@@ -148,15 +158,6 @@ class _HistoryPageState extends State<HistoryPage> {
       "color" : HexColor.fromHex(json["player"]["play_col"].toString()),
       "selected" : selected
     };
-  }
-
-  String getVoteTxt(i) {
-    String voteTxt = "";
-    for (var move in getMoves(i)) {
-      String pName = move["player"]; //if (move["selected"]) pName += "(*)";
-      voteTxt += "$pName ${move["san"]} : ";
-    }
-    return (voteTxt.length > 2) ? voteTxt.substring(0,voteTxt.length-2) : voteTxt;
   }
 
 }
