@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mole_app/src/chat_page.dart';
 import 'package:mole_app/src/chess_page.dart';
+import 'package:mole_app/src/dialogs.dart';
 import 'package:mole_app/src/history_page.dart';
 import 'package:mole_app/src/lobby_page.dart';
 import 'package:mole_app/src/mole_client.dart';
@@ -9,10 +10,9 @@ import 'package:mole_app/src/splash_page.dart';
 import 'package:provider/provider.dart';
 
 const remoteAddress = "wss://molechess.com/server";
-const localServer = false;
+const localServer = true;
 enum Platforms { android, ios, windows, web }
 const platform = Platforms.android;
-final globalNavigatorKey = GlobalKey<NavigatorState>();
 
 main()  {
   WidgetsFlutterBinding.ensureInitialized();
@@ -157,16 +157,19 @@ class _MoleHomePageState extends State<MoleHomePage> {
                     ),
                   ],
                   currentIndex: selectedIndex,
-                  onTap: (value) {
-                    setState(() {
-                      selectedIndex = value;
-                      selectedPage = Pages.values.elementAt(selectedIndex);
-                      if (selectedPage == Pages.chess) {
-                        ChessPage.history = false;
-                      } else if (selectedPage == Pages.options) {
-                        widget.client.send("get_opt",data : widget.client.currentGame.title);
-                      }
-                    });
+                  onTap: (value) { //print(value);
+                    if (!Dialogs.dialog) {
+                      setState(() {
+                        selectedIndex = value;
+                        selectedPage = Pages.values.elementAt(selectedIndex);
+                        if (selectedPage == Pages.chess) {
+                          ChessPage.history = false;
+                        } else if (selectedPage == Pages.options) {
+                          widget.client.send("get_opt",
+                              data: widget.client.currentGame.title);
+                        }
+                      });
+                    }
                   },
                 ),
               )

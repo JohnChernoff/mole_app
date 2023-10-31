@@ -91,35 +91,56 @@ class ChessPage extends StatelessWidget {
             ),
             onMove: client.sendMove,
           ),
-          SizedBox(
-            height: 100,
-            width: 100,
-            child: Stack(
-              fit: StackFit.passthrough,
-              children: [
-                CustomPaint(
-                  painter: ClockPainter(client.currentGame.jsonData?["turn"] == 0 ? Colors.black : Colors.white),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              SizedBox(
+                height: 100,
+                width: 100,
+                child: Stack(
+                  fit: StackFit.passthrough,
+                  children: [
+                    CustomPaint(
+                      painter: ClockPainter(client.currentGame.jsonData?["turn"] == 0 ? Colors.black : Colors.white),
+                    ),
+                    CircularProgressIndicator(
+                      strokeAlign: -1,
+                      strokeWidth: 16,
+                      backgroundColor: Colors.red,
+                      color: Colors.green,
+                      value: client.getCountPercentage(),
+                      semanticsLabel: 'Circular progress indicator',
+                    ),
+                    Center(
+                        child: Text(
+                          "${client.currentGame.countdown["currentTime"].floor()}", //${client.turnString()}:
+                          style: TextStyle(
+                            fontSize: client.currentGame.countdown["currentTime"] > 99
+                                ? 24
+                                : 42,
+                            color: client.currentGame.jsonData?["turn"] == 0 ? Colors.white : Colors.black,
+                          ),
+                        )),
+                  ],
                 ),
-                CircularProgressIndicator(
-                  strokeAlign: -1,
-                  strokeWidth: 16,
-                  backgroundColor: Colors.red,
-                  color: Colors.green,
-                  value: client.getCountPercentage(),
-                  semanticsLabel: 'Circular progress indicator',
-                ),
-                Center(
-                    child: Text(
-                  "${client.currentGame.countdown["currentTime"].floor()}", //${client.turnString()}:
-                  style: TextStyle(
-                    fontSize: client.currentGame.countdown["currentTime"] > 99
-                        ? 24
-                        : 42,
-                    color: client.currentGame.jsonData?["turn"] == 0 ? Colors.white : Colors.black,
-                  ),
-                )),
-              ],
-            ),
+              ),
+              Container(
+                //color: Colors.brown,
+                height: 100,
+                width: (screenWidth-100)/2,
+                child: ListView(
+                    scrollDirection: Axis.vertical,
+                    children: List.generate(
+                        client.currentGame.currentVotes.length, (index) {
+                      return Text(
+                          "${client.currentGame.currentVotes[index]["player_name"]}: ${client.currentGame.currentVotes[index]["player_move"]}",
+                        style: const TextStyle(
+                          //color: Colors.amberAccent
+                        ),
+                      );
+                    })),
+              ),
+            ],
           ),
         ],
       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dialogs.dart';
 import 'mole_client.dart';
 
 class LobbyPage extends StatelessWidget {
@@ -39,19 +40,25 @@ class LobbyPage extends StatelessWidget {
           padding: const EdgeInsets.all(8),
           child: ElevatedButton(
               onPressed: () =>
-                  getTitle(context).then((title) => client.newGame(title)),
+                  Dialogs.getTitle(context,client.userName).then((title) => client.newGame(title)),
               child: const Text("New Game")),
         ),
         Padding(
           padding: const EdgeInsets.all(8),
           child: ElevatedButton(
-              onPressed: () => client.startCurrentGame(),
+              onPressed: () => client.gameCmd("status"),
               child: const Text("Start Game")),
         ),
         Padding(
           padding: const EdgeInsets.all(8),
           child: ElevatedButton(
-              onPressed: () => client.leaveCurrentGame(),
+              onPressed: () => client.gameCmd("joinGame"),
+              child: const Text("Join Game")),
+        ),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: ElevatedButton(
+              onPressed: () => client.gameCmd("partGame"),
               child: const Text("Leave Game")),
         ),
         Expanded(
@@ -127,30 +134,5 @@ class LobbyPage extends StatelessWidget {
         ));
   }
 
-  Future<String> getTitle(BuildContext context) async {
-    TextEditingController titleControl = TextEditingController();
-    return await showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      titleControl.text = "Whee";
-      return Center(
-        child: SimpleDialog(
-          backgroundColor: Colors.green,
-          elevation: 10,
-          title: const Text('Choose Game Title'),
-          children: [
-            TextField(
-              controller: titleControl,
-            ),
-            SimpleDialogOption(
-              onPressed: () {
-                Navigator.pop(context, titleControl.text);
-              },
-              child: const Text('Enter'),
-            ),
-          ],
-        ),
-      );
-    });
-  }
+
 }

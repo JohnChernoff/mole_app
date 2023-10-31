@@ -10,7 +10,6 @@ class ChatPage extends StatefulWidget {
 }
 
 class _ChatPageState extends State<ChatPage> {
-  //TextEditingController inputControl = TextEditingController();
   final ScrollController scrollController = ScrollController();
 
   _scrollDown(int millis) {
@@ -25,6 +24,7 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  bool servLog = false;
   bool hideServerMessages = false;
   @override
   Widget build(BuildContext context) {
@@ -55,6 +55,17 @@ class _ChatPageState extends State<ChatPage> {
             ),
           ],
         ),
+        CheckboxListTile(
+          title: const Text("Show General Messages"),
+          value: servLog,
+          onChanged: (newValue) {
+            setState(() {
+              servLog = newValue!;
+            });
+          },
+          controlAffinity:
+          ListTileControlAffinity.leading, //  <-- leading Checkbox
+        ),
         TextField( //controller: inputControl,
               onSubmitted: (txt) {
                 widget.client.sendChat(txt);
@@ -66,9 +77,9 @@ class _ChatPageState extends State<ChatPage> {
                     reverse: false,
                     scrollDirection: Axis.vertical,
                     padding: const EdgeInsets.all(8),
-                    itemCount: widget.client.currentGame.chat.length,
+                    itemCount: servLog ? widget.client.servLog.length : widget.client.currentGame.chat.length,
                     itemBuilder: (BuildContext context, int index) {
-                      var chat = widget.client.currentGame.chat[index];
+                      var chat = servLog ? widget.client.servLog[index] : widget.client.currentGame.chat[index];
                       String color = chat["color"];
                       String msg = chat["msg"];
                       return Container(

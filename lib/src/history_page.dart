@@ -1,5 +1,4 @@
 import 'package:chessground/chessground.dart';
-import 'package:chessground/src/widgets/background.dart';
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
@@ -13,42 +12,13 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  final ScrollController scrollControl = ScrollController(); //unused
   ISet<Shape>? boardArrows = ISet();
-  BoardTheme boardTheme = BoardTheme.blue;
-  BoardColorScheme boardColorScheme = const BoardColorScheme(
-      lightSquare: Colors.white54,
-      darkSquare: Colors.brown,
-      background: SolidColorBackground(
-        lightSquare: Colors.white,
-        darkSquare: Colors.brown,
-      ) ,
-      whiteCoordBackground: SolidColorBackground(
-        lightSquare: Colors.white54,
-        darkSquare: Colors.black12,
-      ) ,
-      blackCoordBackground: SolidColorBackground(
-        lightSquare: Colors.white,
-        darkSquare: Colors.blue,
-      ) ,
-      lastMove: HighlightDetails(solidColor: Colors.greenAccent),
-      selected: HighlightDetails(solidColor: Colors.greenAccent),
-      validMoves: Colors.red,
-      validPremoves: Colors.orange);
-
   String hoverTxt = "";
   int movePly = 0;
   String fen = initialFen;
 
-
-  void _handleScrollNotification() {
-    int move = (widget.client.currentGame.moves.length *
-        (scrollControl.position.pixels/scrollControl.position.maxScrollExtent)).floor() - 1;
-    newPosition(move);
-  }
-
   @override
-  void initState() { //scrollControl.addListener(_handleScrollNotification);
+  void initState() {
     super.initState();
   }
 
@@ -199,8 +169,7 @@ class InterpolatedSquare extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) { //print(size.width); print("$fromCol -> $toCol");
     Paint p = Paint();
-    for (double x=0; x<size.width; x++) {
-      //print(x); p.blendMode = BlendMode.xor;
+    for (double x=0; x<size.width; x++) { //print(x); p.blendMode = BlendMode.xor;
       p.color = Color.lerp(fromCol, toCol, x/size.width)!;
       canvas.drawLine(Offset(x,0),Offset(x,size.height),p);
     }

@@ -1,11 +1,11 @@
 import 'package:chessground/chessground.dart';
 import 'package:dartchess/dartchess.dart' hide Move;
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
-import 'package:mole_app/main.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dialogs.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
 
@@ -19,6 +19,7 @@ class MoleGame {
     "time": 0.0,
     "currentTime": 0.0
   };
+  List<dynamic> currentVotes = [];
   List<dynamic> moves = [];
   List<dynamic> chat = [];
   dynamic jsonData;
@@ -47,6 +48,8 @@ class MoleClient extends ChangeNotifier {
   int lastUpdate = 0;
   bool starting = true;
   Map<String, dynamic> options = {};
+  bool modal = false;
+  List<dynamic> servLog = List<dynamic>.empty(growable: true);
 
   MoleClient(this.address) {
     SharedPreferences.getInstance().then((sp) {
@@ -62,7 +65,7 @@ class MoleClient extends ChangeNotifier {
       "serv_msg" : handleGameMsg,
       "game_msg" : handleGameMsg,
       "chat" : handleChat,
-      "err_msg" : handleChat,
+      "err_msg" : handleErrorMessage,
       "phase" : handlePhase,
       "no_log" : loggedOut,
       "join" : handleJoin,
@@ -70,7 +73,8 @@ class MoleClient extends ChangeNotifier {
       "defection" : handleDefection,
       "rampage" : handleRampage,
       "molebomb" : handleMolebomb,
-      "options" : handleOptions
+      "options" : handleOptions,
+      "votelist" : handleVotelist
     };
     _connect();
   }
@@ -97,24 +101,28 @@ class MoleClient extends ChangeNotifier {
       options.putIfAbsent("game", () => currentGame.title);
   }
 
+  void handleVotelist(data) {
+      getGame(data["source"]).currentVotes = data["list"];
+  }
+
   //TODO: fix server to work with these
   void handleDefection(data) {
     if (getGame(data["source"]) == currentGame) {
-      popup("${data["player"]["user"]["name"]} defects!",
+      Dialogs.popup("${data["player"]["user"]["name"]} defects!",
           imgFilename: "defection.png");
     }
   }
 
   void handleRampage(data) {
     if (getGame(data["source"]) == currentGame) {
-      popup("${data["player"]["user"]["name"]} rampages!",
+      Dialogs.popup("${data["player"]["user"]["name"]} rampages!",
           imgFilename: "rampage.png");
     }
   }
 
   void handleMolebomb(data) {
     if (getGame(data["source"]) == currentGame) {
-      popup("${data["player"]["user"]["name"]} bombs!",
+      Dialogs.popup("${data["player"]["user"]["name"]} bombs!",
           imgFilename: "molebomb.png");
     }
   }
@@ -123,7 +131,7 @@ class MoleClient extends ChangeNotifier {
     MoleGame game = getGame(data["source"]);
     if (game == currentGame) {
       String role = data["msg"];
-      popup("You are the $role",imgFilename: "${role.toLowerCase()}.png");
+      Dialogs.popup("You are the $role",imgFilename: "${role.toLowerCase()}.png");
     }
   }
 
@@ -203,10 +211,16 @@ class MoleClient extends ChangeNotifier {
     if (msg == "ready") {
       gameCmd("startGame");
     } else if (msg == "insufficient") {
-      popup("Add AI?").then((ok)  { //print("OK: $ok");
+      Dialogs.popup("Add AI?").then((ok)  { //print("OK: $ok");
         if (ok) gameCmd("startgame");
       });
     }
+  }
+
+  void handleErrorMessage(data) {
+    final source = games[data['source']]?.title ?? 'Serv:';
+    Dialogs.popup("$source: ${data['msg']}");
+    //servLog.add({"msg": data['msg'],"player": "serv","color": "FF0000"});
   }
 
   void handleChat(data) {
@@ -222,7 +236,7 @@ class MoleClient extends ChangeNotifier {
   void handleGameMsg(data) {  //print("Game Message: ${data["msg"]}");
     MoleGame? game = games[data["source"]];
     if (game == null) { //server message
-      popup(data["msg"]);
+      servLog.add({"msg": data['msg'],"player": "serv","color": "AAAA00"});
     }
     else {
       game.chat.add({
@@ -252,7 +266,6 @@ class MoleClient extends ChangeNotifier {
 
   MoleGame getGame(String title) {
     return games.putIfAbsent(title, () {
-      //MoleGame moleGame = ;
       //if (currentGame.title == dummyTitle) currentGame = moleGame;
       return MoleGame(title);
     });
@@ -311,16 +324,8 @@ class MoleClient extends ChangeNotifier {
     }
   }
 
-  void newGame(String title) { //print("Create game: $title");
-    send("newgame",data :{"game": title, "color": 0});
-  }
-
-  void startCurrentGame() {
-    send("status",data: currentGame.title);
-  }
-
-  void leaveCurrentGame() {
-    send("partGame",data: currentGame.title);
+  void newGame(String title) { print("Create game: $title");
+    send("newgame",data :{"game": title}); //, "color": 0});
   }
 
   void sendChat(String msg) {
@@ -353,7 +358,7 @@ class MoleClient extends ChangeNotifier {
   void disconnected() {
     isConnected = false; isLoggedIn = false;
     print("Disconnected: $userName");
-    popup("Disconnected!  Log back in?").then((ok) {
+    Dialogs.popup("Disconnected!  Log back in?").then((ok) {
       if (ok) _connect();
     });
   }
@@ -367,70 +372,14 @@ class MoleClient extends ChangeNotifier {
   void loggedOut(data) {
     print("Logged out: $userName");
     isLoggedIn = false;
-    popup("Logged out!  Log back in?").then((ok) {
+    Dialogs.popup("Logged out!  Log back in?").then((ok) {
       if (ok) _login();
     });
   }
 
-  Future<bool> popup (String txt, { String? imgFilename }) async {
-    BuildContext? ctx = globalNavigatorKey.currentContext;
-    if (ctx == null) return false;
-    return showDialog(
-        context: ctx,
-        builder: (BuildContext context) {
-          return Center(
-              child: imgFilename == null
-                  ? ConfirmDialog(txt)
-                  : NotificationDialog(txt, imgFilename));
-        }).then((ok) => ok);
-  }
-
 }
 
-class ConfirmDialog extends StatelessWidget {
-  final String txt;
-  const ConfirmDialog(this.txt, {super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return SimpleDialog(
-      children: [
-        Text(txt),
-        SimpleDialogOption(
-            onPressed: () { //print("True");
-              Navigator.pop(context,true);
-            },
-            child: const Text('OK')),
-        SimpleDialogOption(
-            onPressed: () {
-              Navigator.pop(context,false);
-            },
-            child: const Text('Cancel')),
-      ],
-    );
-  }
-}
-
-class NotificationDialog extends StatelessWidget {
-  final String txt;
-  final String imageFilename;
-  const NotificationDialog(this.txt, this.imageFilename, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return SimpleDialog(
-      children: [
-        Text(txt),
-        Image.asset("assets/images/$imageFilename"),
-        SimpleDialogOption(
-            onPressed: () { //print("True");
-              Navigator.pop(context,true);
-            },
-            child: const Text('Continue')),
-      ],
-    );
-  }
-}
 
 extension HexColor on Color {
   /// String is in the format "aabbcc" or "ffaabbcc" with an optional leading "#".
