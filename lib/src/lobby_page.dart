@@ -32,34 +32,41 @@ class LobbyPage extends StatelessWidget {
                   );
                 }).toList(),
                 onChanged: (String? title) {
-                  client.switchGame(title!);
+                  client.switchGame(title);
                 }),
           ],
         ),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: ElevatedButton(
-              onPressed: () =>
-                  Dialogs.getTitle(context,client.userName).then((title) => client.newGame(title)),
-              child: const Text("New Game")),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: ElevatedButton(
-              onPressed: () => client.gameCmd("status"),
-              child: const Text("Start Game")),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: ElevatedButton(
-              onPressed: () => client.gameCmd("joinGame"),
-              child: const Text("Join Game")),
-        ),
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child: ElevatedButton(
-              onPressed: () => client.gameCmd("partGame"),
-              child: const Text("Leave Game")),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: ElevatedButton(
+                style: getButtonStyle(Colors.greenAccent,Colors.redAccent),
+                onPressed: () => Dialogs.getTitle(context, client.userName).then((title) => client.newGame(title)),
+                child: const Text("New"),
+              )),
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: ElevatedButton(
+                  style: getButtonStyle(Colors.redAccent, Colors.purpleAccent),
+                  onPressed: () => client.gameCmd("status"),
+                  child: const Text("Start")),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: ElevatedButton(
+                  style: getButtonStyle(Colors.blueAccent, Colors.greenAccent),
+                  onPressed: () => client.gameCmd("joinGame"),
+                  child: const Text("Join")),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(4),
+              child: ElevatedButton(
+                  style: getButtonStyle(Colors.black12, Colors.orangeAccent),
+                  onPressed: () => client.gameCmd("partGame"),
+                  child: const Text("Leave")),
+            ),],
         ),
         Expanded(
           child: SingleChildScrollView(
@@ -132,6 +139,14 @@ class LobbyPage extends StatelessWidget {
         icon: Icon(
           iconData,
         ));
+  }
+
+  ButtonStyle getButtonStyle(Color c1, Color c2) {
+    return ButtonStyle(backgroundColor:
+        MaterialStateProperty.resolveWith<Color?>((Set<MaterialState> states) {
+      if (states.contains(MaterialState.pressed)) return c2;
+      return c1;
+    }));
   }
 
 

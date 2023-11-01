@@ -1,3 +1,4 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:chessground/chessground.dart';
 import 'package:dartchess/dartchess.dart' hide Move;
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
@@ -50,6 +51,9 @@ class MoleClient extends ChangeNotifier {
   Map<String, dynamic> options = {};
   bool modal = false;
   List<dynamic> servLog = List<dynamic>.empty(growable: true);
+  bool sound = true;
+  final audio = AudioPlayer();
+  double volume = .5;
 
   MoleClient(this.address) {
     SharedPreferences.getInstance().then((sp) {
@@ -74,18 +78,29 @@ class MoleClient extends ChangeNotifier {
       "rampage" : handleRampage,
       "molebomb" : handleMolebomb,
       "options" : handleOptions,
-      "votelist" : handleVotelist
+      "votelist" : handleVotelist,
+      "side" : handleSide
     };
     _connect();
   }
 
-  void _connect() {
+
+  void _playTrack(track) {
+    if (sound) audio.play(AssetSource('audio/tracks/$track.mp3'), volume: volume);
+  }
+
+  void _playClip(clip) {
+    if (sound) audio.play(AssetSource('audio/clips/$clip.mp3'), volume: volume);
+  }
+
+  void _connect()  {
+    _playTrack("intro");
     print("Connecting to $address");
     sock = MoleSock(address,connected,handleMsg,disconnected);
   }
 
-  void switchGame(String title) {
-    if (games[title ?? ""] != null) {
+  void switchGame(String? title) {
+    if (games[(title ?? "")] != null) {
       currentGame = games[title]!;
       send("update",data:title);
     }
@@ -94,6 +109,12 @@ class MoleClient extends ChangeNotifier {
   void submitOptions() {
     print(jsonEncode(options));
     send("set_opt",data: options);
+  }
+
+  void handleSide(data) { //print("New Side: " + data["color"]);
+    if (currentGame == getGame(data["source"])) {
+      orientWhite = data["color"] == "white";
+    }
   }
 
   void handleOptions(data) {
@@ -108,6 +129,7 @@ class MoleClient extends ChangeNotifier {
   //TODO: fix server to work with these
   void handleDefection(data) {
     if (getGame(data["source"]) == currentGame) {
+      _playClip("defect");
       Dialogs.popup("${data["player"]["user"]["name"]} defects!",
           imgFilename: "defection.png");
     }
@@ -115,6 +137,7 @@ class MoleClient extends ChangeNotifier {
 
   void handleRampage(data) {
     if (getGame(data["source"]) == currentGame) {
+      _playClip("rampage");
       Dialogs.popup("${data["player"]["user"]["name"]} rampages!",
           imgFilename: "rampage.png");
     }
@@ -122,6 +145,7 @@ class MoleClient extends ChangeNotifier {
 
   void handleMolebomb(data) {
     if (getGame(data["source"]) == currentGame) {
+      _playClip("bomb");
       Dialogs.popup("${data["player"]["user"]["name"]} bombs!",
           imgFilename: "molebomb.png");
     }
@@ -131,6 +155,7 @@ class MoleClient extends ChangeNotifier {
     MoleGame game = getGame(data["source"]);
     if (game == currentGame) {
       String role = data["msg"];
+      _playClip("role_${role.toLowerCase()}");
       Dialogs.popup("You are the $role",imgFilename: "${role.toLowerCase()}.png");
     }
   }
@@ -147,6 +172,7 @@ class MoleClient extends ChangeNotifier {
   void handleMove(data) { //print("New move: ${data['move']}");
     final title = data["title"]; //print("Updating: $title");
     final MoleGame game = getGame(title);
+    if (game == currentGame) _playClip(game.jsonData["turn"] == 0 ? "move_black" : "move_white");
     _updateMoveHistory(data,game);
   }
 
@@ -219,6 +245,7 @@ class MoleClient extends ChangeNotifier {
 
   void handleErrorMessage(data) {
     final source = games[data['source']]?.title ?? 'Serv:';
+    _playClip("doink");
     Dialogs.popup("$source: ${data['msg']}");
     //servLog.add({"msg": data['msg'],"player": "serv","color": "FF0000"});
   }
@@ -325,6 +352,7 @@ class MoleClient extends ChangeNotifier {
   }
 
   void newGame(String title) { print("Create game: $title");
+    _playClip("bump");
     send("newgame",data :{"game": title}); //, "color": 0});
   }
 

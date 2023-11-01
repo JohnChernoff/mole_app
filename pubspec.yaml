@@ -45,6 +45,7 @@ dependencies:
   chessground: ^2.1.0
   dartchess: ^0.5.0
   fast_immutable_collections: ^9.1.6
+  audioplayers: ^5.2.0
 
 dev_dependencies:
   flutter_test:
@@ -102,7 +103,8 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
-
+    - assets/audio/tracks/
+    - assets/audio/clips/
   # fonts:
   # - family: FancyFonts
   #   fonts:
