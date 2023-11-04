@@ -1,9 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
+        android:usesCleartextTraffic="true"
         android:label="mole_app"
         android:name="${applicationName}"
         android:icon="@mipmap/moleicon">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

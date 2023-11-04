@@ -21,19 +21,29 @@ class _ChessPage extends State<ChessPage> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        IconButton(
-          onPressed: () {
-            setState(() {
-              if (page == ChessPages.historyBoard) {
-                page = ChessPages.currentBoard;
-              } else {
-                page = ChessPages.historyBoard;
-              }
-            });
-          },
-          icon: page == ChessPages.historyBoard ? const Icon(Icons.arrow_back) : const Icon(Icons.history),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              onPressed: () {
+                setState(() {
+                  if (page == ChessPages.historyBoard) {
+                    page = ChessPages.currentBoard;
+                  } else {
+                    page = ChessPages.historyBoard;
+                  }
+                });
+              },
+              icon: page == ChessPages.historyBoard ? const Icon(Icons.arrow_back) : const Icon(Icons.history),
+            ),
+            IconButton(
+              onPressed: () { widget.client.flipBoard(); },
+              icon: const Icon(Icons.invert_colors)
+            ),
+          ],
         ),
         Expanded(
+          flex: page == ChessPages.currentBoard ? 0 : 1,
             child: switch (page) {
           ChessPages.currentBoard => CurrentBoardPage(widget.client),
           ChessPages.historyBoard => GameHistoryPage(widget.client),
@@ -50,12 +60,10 @@ class CurrentBoardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
-    return Center(
-      child: Column(
+    return Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
           Row(
-            mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ElevatedButton(
@@ -90,16 +98,7 @@ class CurrentBoardPage extends StatelessWidget {
               ),
             ],
           ),
-          ElevatedButton(
-            onPressed: () { client.flipBoard(); },
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.invert_colors),
-                Text(" Flip"),
-              ],
-            ),
-          ),
+          SizedBox(width: screenWidth, height: 8),
           Board(
             settings: const BoardSettings(
                 pieceAssets: PieceSet.californiaAssets,
@@ -115,6 +114,7 @@ class CurrentBoardPage extends StatelessWidget {
             ),
             onMove: client.sendMove,
           ),
+          SizedBox(width: screenWidth, height: 8),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -167,7 +167,6 @@ class CurrentBoardPage extends StatelessWidget {
             ],
           ),
         ],
-      ),
     );
   }
 }
