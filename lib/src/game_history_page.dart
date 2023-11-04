@@ -3,15 +3,15 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
 
-class HistoryPage extends StatefulWidget {
+class GameHistoryPage extends StatefulWidget {
   final MoleClient client;
-  const HistoryPage(this.client, {super.key});
+  const GameHistoryPage(this.client, {super.key});
 
   @override
-  State<StatefulWidget> createState() => _HistoryPageState();
+  State<StatefulWidget> createState() => _GameHistoryPageState();
 }
 
-class _HistoryPageState extends State<HistoryPage> {
+class _GameHistoryPageState extends State<GameHistoryPage> {
   ISet<Shape>? boardArrows = ISet();
   List<Widget> hoverVotes = List.empty(growable: true);
   int movePly = 0;
@@ -70,9 +70,6 @@ class _HistoryPageState extends State<HistoryPage> {
             ),
             children: List.generate(widget.client.currentGame.moves.length,
                     (index) {
-                  Color playCol = HexColor.fromHex(widget.client.currentGame
-                      .moves[index]["selected"]["player"]["play_col"]
-                      .toString());
                   String moveNum = (index ~/ 2 + 1).toString() +
                       (index % 2 == 0 ? "." : "...");
                   String moveStr = moveNum +
@@ -103,7 +100,7 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   void setHoverVotes(index) {
-    final moves = getMoves(index);
+    final moves = getMoves(index+1);
     final votes = List.generate(
         moves.length,
         (index) => Padding(
@@ -140,10 +137,11 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   List<dynamic> getMoves(i) {
+    final i2 = i > 1 ? i - 1 : 0;
     List<dynamic> moves = List<dynamic>.empty(growable: true);
     if (widget.client.currentGame.moves.isEmpty) return moves;
-    moves.add(getMove(widget.client.currentGame.moves[i]["selected"],true));
-    for (var alt in widget.client.currentGame.moves[i]["alts"]) {
+    moves.add(getMove(widget.client.currentGame.moves[i2]["selected"],true));
+    for (var alt in widget.client.currentGame.moves[i2]["alts"]) {
       moves.add(getMove(alt,false));
     }
     return moves;

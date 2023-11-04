@@ -41,7 +41,7 @@ class Dialogs {
 }
 
 class TextDialog extends StatelessWidget {
-  TextEditingController titleControl = TextEditingController();
+  final TextEditingController titleControl = TextEditingController();
 
   TextDialog(String title, {super.key}) {
     titleControl.text = title;

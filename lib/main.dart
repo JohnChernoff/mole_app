@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mole_app/src/chat_page.dart';
 import 'package:mole_app/src/chess_page.dart';
 import 'package:mole_app/src/dialogs.dart';
-import 'package:mole_app/src/history_page.dart';
+import 'package:mole_app/src/game_history_page.dart';
 import 'package:mole_app/src/lobby_page.dart';
 import 'package:mole_app/src/mole_client.dart';
 import 'package:mole_app/src/options_page.dart';
@@ -10,7 +10,7 @@ import 'package:mole_app/src/splash_page.dart';
 import 'package:provider/provider.dart';
 
 const remoteAddress = "wss://molechess.com/server";
-const localServer = true;
+const localServer = false;
 enum Platforms { android, ios, windows, web }
 const platform = Platforms.android;
 
@@ -44,8 +44,6 @@ class MoleApp extends StatelessWidget {
         ),
       );
   }
-
-  //onConnected() {}
 }
 
 class MoleHomePage extends StatefulWidget {
@@ -86,18 +84,15 @@ class _MoleHomePageState extends State<MoleHomePage> {
     if (selectedPage == Pages.splash && client.isLoggedIn) {
       selectedPage = Pages.lobby;
     }
-    else if (selectedPage == Pages.chess && ChessPage.history) {
-      selectedPage = Pages.history;
-    }
     switch (selectedPage) {
       case Pages.history:
-        page = HistoryPage(client);
+        page = GameHistoryPage(client);
         break;
       case Pages.chess:
         page = ChessPage(client);
         break;
       case Pages.lobby:
-        page = LobbyPage(client);
+        page = MainLobbyPage(client);
         break;
       case Pages.chat:
         page = ChatPage(client);
@@ -157,14 +152,12 @@ class _MoleHomePageState extends State<MoleHomePage> {
                     ),
                   ],
                   currentIndex: selectedIndex,
-                  onTap: (value) { //print(value);
+                  onTap: (value) {
                     if (!Dialogs.dialog) {
                       setState(() {
                         selectedIndex = value;
                         selectedPage = Pages.values.elementAt(selectedIndex);
-                        if (selectedPage == Pages.chess) {
-                          ChessPage.history = false;
-                        } else if (selectedPage == Pages.options) {
+                        if (selectedPage == Pages.options) {
                           widget.client.send("get_opt",
                               data: widget.client.currentGame.title);
                         }

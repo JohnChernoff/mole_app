@@ -1,16 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:mole_app/src/player_history_page.dart';
+import 'package:mole_app/src/top_page.dart';
 import 'dialogs.dart';
 import 'mole_client.dart';
 
+enum LobbyPages {lobby,top,playerHistory}
+
+class MainLobbyPage extends StatefulWidget {
+  final MoleClient client;
+  const MainLobbyPage(this.client, {super.key});
+
+  @override
+  State<StatefulWidget> createState()  => _MainLobbyPageState();
+}
+
+class _MainLobbyPageState extends State<MainLobbyPage> {
+  LobbyPages page = LobbyPages.lobby;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Row(
+          children: [
+            page == LobbyPages.lobby
+                ? ElevatedButton(
+                    onPressed: () {
+                      widget.client.getTop(10);
+                      setState(() {
+                        page = LobbyPages.top;
+                      });
+                    },
+                    child: const Text("Top"),
+                  )
+                : ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        page = LobbyPages.lobby;
+                      });
+                    },
+                    child: const Text("Lobby"),
+                  ),
+            page == LobbyPages.lobby
+                ? ElevatedButton(
+                    onPressed: () {
+                      widget.client.getPlayerHistory(widget.client.userName);
+                      setState(() {
+                        page = LobbyPages.playerHistory;
+                      });
+                    },
+                    child: const Text("History"),
+                  )
+                : const SizedBox(),
+          ],
+        ),
+        Expanded(
+            child: switch (page) {
+          LobbyPages.lobby => LobbyPage(widget.client),
+          LobbyPages.top => TopPage(widget.client),
+          LobbyPages.playerHistory => PlayerHistoryPage(widget.client),
+        }),
+      ],
+    );
+  }
+}
+
 class LobbyPage extends StatelessWidget {
 
-  final MoleClient client;
-  LobbyPage(this.client, {super.key});
   final Map<int,Color> colorMap = {
     -1 : Colors.grey,
     0 : Colors.black,
     1: Colors.white
   };
+
+  final MoleClient client;
+  LobbyPage(this.client, {super.key});
 
   @override
   Widget build(BuildContext context) {

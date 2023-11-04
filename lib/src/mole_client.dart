@@ -33,6 +33,8 @@ class MoleGame {
 }
 
 class MoleClient extends ChangeNotifier {
+  Map<String,Function> functionMap = {};
+  Map<String,bool> waitMap = {};
   static const String dummyTitle= "?";
   MoleGame currentGame = MoleGame(dummyTitle);
   bool orientWhite = true;
@@ -40,20 +42,21 @@ class MoleClient extends ChangeNotifier {
   String lichessToken = "";
   SharedPreferences? prefs;
   String userName = "";
-  Map<String,Function> functionMap = {};
+  int lastUpdate = 0;
+  bool starting = true;
+  Map<String, dynamic> options = {};
+  bool modal = false;
+  List<dynamic> servLog = []; //List<dynamic>.empty(growable: true);
+  List<dynamic> topPlayers = [];
+  Map<String,dynamic> playerHistory = {};
+  bool sound = true;
+  final audio = AudioPlayer();
+  double volume = .5;
   bool confirmAI = false;
   bool isConnected = false;
   bool isLoggedIn = false;
   String address;
   late MoleSock sock;
-  int lastUpdate = 0;
-  bool starting = true;
-  Map<String, dynamic> options = {};
-  bool modal = false;
-  List<dynamic> servLog = List<dynamic>.empty(growable: true);
-  bool sound = true;
-  final audio = AudioPlayer();
-  double volume = .5;
 
   MoleClient(this.address) {
     SharedPreferences.getInstance().then((sp) {
@@ -61,6 +64,7 @@ class MoleClient extends ChangeNotifier {
         lichessToken = prefs?.getString('token') ?? "";
     });
     functionMap = {
+      "no_log" : loggedOut,
       "log_OK" : loggedIn,
       "games_update" : handleGamesUpdate,
       "game_update" : handleGameUpdate,
@@ -71,7 +75,6 @@ class MoleClient extends ChangeNotifier {
       "chat" : handleChat,
       "err_msg" : handleErrorMessage,
       "phase" : handlePhase,
-      "no_log" : loggedOut,
       "join" : handleJoin,
       "role" : handleRole,
       "defection" : handleDefection,
@@ -79,8 +82,13 @@ class MoleClient extends ChangeNotifier {
       "molebomb" : handleMolebomb,
       "options" : handleOptions,
       "votelist" : handleVotelist,
-      "side" : handleSide
+      "side" : handleSide,
+      "top" : handleTop,
+      "history" : handlePlayerHistory
     };
+    for (var key in functionMap.keys) {
+      waitMap.putIfAbsent(key, () => false);
+    }
     _connect();
   }
 
@@ -106,9 +114,28 @@ class MoleClient extends ChangeNotifier {
     }
   }
 
-  void submitOptions() {
-    print(jsonEncode(options));
+  void submitOptions() { //print(jsonEncode(options));
     send("set_opt",data: options);
+  }
+
+  void getTop(int n) {
+    waitMap["top"] = true;
+    send("top",data: n);
+  }
+
+  void handleTop(data) { //print("Top: " + data.toString());
+    topPlayers = data;
+    waitMap["top"] = false;
+  }
+
+  void getPlayerHistory(String pName) {
+    waitMap["history"] = true;
+    send("history",data: pName);
+  }
+
+  void handlePlayerHistory(data) {
+    playerHistory = data;
+    waitMap["history"] = false;
   }
 
   void handleSide(data) { //print("New Side: " + data["color"]);
@@ -362,16 +389,16 @@ class MoleClient extends ChangeNotifier {
 
   void handleMsg(String msg) { //print("Incoming msg: $msg");
     final json = jsonDecode(msg);
-    String type = json["type"];
-    //print("Handling: $type");
+    String type = json["type"]; //print("Handling: $type");
     Function? fun = functionMap[type];
     if (fun != null) {
       fun(json["data"]);
+      notifyListeners();
     } else {
       //print("Function not found");
     }
-    notifyListeners();
-      if (type == "chat" || type == "serv_msg" || type == "game_msg") {
+    if (type == "chat" || type == "serv_msg" || type == "game_msg") {
+      //play sound?
     }
   }
 

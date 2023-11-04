@@ -1,35 +1,59 @@
 import 'package:chessground/chessground.dart';
+import 'game_history_page.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
 
-class ChessPage extends StatelessWidget {
+enum ChessPages { currentBoard,historyBoard }
 
+class ChessPage extends StatefulWidget {
   final MoleClient client;
-  static bool history = false;
-
   const ChessPage(this.client, {super.key});
+
+  @override
+  State<StatefulWidget> createState() => _ChessPage();
+
+}
+
+class _ChessPage extends State<ChessPage> {
+  ChessPages page = ChessPages.currentBoard;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        IconButton(
+          onPressed: () {
+            setState(() {
+              if (page == ChessPages.historyBoard) {
+                page = ChessPages.currentBoard;
+              } else {
+                page = ChessPages.historyBoard;
+              }
+            });
+          },
+          icon: page == ChessPages.historyBoard ? const Icon(Icons.arrow_back) : const Icon(Icons.history),
+        ),
+        Expanded(
+            child: switch (page) {
+          ChessPages.currentBoard => CurrentBoardPage(widget.client),
+          ChessPages.historyBoard => GameHistoryPage(widget.client),
+        }),
+      ],
+    );
+  }
+}
+
+class CurrentBoardPage extends StatelessWidget {
+  final MoleClient client;
+  const CurrentBoardPage(this.client, {super.key});
 
   @override
   Widget build(BuildContext context) {
     final double screenWidth = MediaQuery.of(context).size.width;
-
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: <Widget>[
-          ElevatedButton(
-            onPressed: () { //homePage.setPage(Pages.history);
-              history = true;
-              client.notifyListeners();
-              },
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                Icon(Icons.history),
-                Text(" History"),
-              ],
-            ),
-          ),
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -78,8 +102,8 @@ class ChessPage extends StatelessWidget {
           ),
           Board(
             settings: const BoardSettings(
-              pieceAssets: PieceSet.californiaAssets,
-              colorScheme: BoardColorScheme.horsey
+                pieceAssets: PieceSet.californiaAssets,
+                colorScheme: BoardColorScheme.horsey
             ),
             size: screenWidth,
             data: BoardData(
@@ -133,7 +157,7 @@ class ChessPage extends StatelessWidget {
                     children: List.generate(
                         client.currentGame.currentVotes.length, (index) {
                       return Text(
-                          "${client.currentGame.currentVotes[index]["player_name"]}: ${client.currentGame.currentVotes[index]["player_move"]}",
+                        "${client.currentGame.currentVotes[index]["player_name"]}: ${client.currentGame.currentVotes[index]["player_move"]}",
                         style: const TextStyle(
                           //color: Colors.amberAccent
                         ),
