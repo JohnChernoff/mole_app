@@ -22,6 +22,7 @@ class _MainLobbyPageState extends State<MainLobbyPage> {
     return Column(
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             page == LobbyPages.lobby
                 ? ElevatedButton(
@@ -87,7 +88,7 @@ class LobbyPage extends StatelessWidget {
             const Text("Select Game:"),
             const SizedBox(width: 8,),
             DropdownButton(
-                value: !client.currentGame.exists || client.currentGame.title == MoleClient.dummyTitle ? null : client.currentGame.title,
+                value: client.currentGame.exists ? client.currentGame.title : null,
                 items:
                 client.games.keys.map<DropdownMenuItem<String>>((String title) { //print("Adding: $title");
                   return DropdownMenuItem<String>(

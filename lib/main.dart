@@ -133,20 +133,20 @@ class _MoleHomePageState extends State<MoleHomePage> {
               SafeArea(
                 child: BottomNavigationBar(
                   type: BottomNavigationBarType.fixed,
-                  items: const [
-                    BottomNavigationBarItem(
+                  items: [
+                    const BottomNavigationBarItem(
                       icon: Icon(Icons.table_bar),
                       label: 'Chess',
                     ),
-                    BottomNavigationBarItem(
+                    const BottomNavigationBarItem(
                       icon: Icon(Icons.local_bar),
                       label: 'Lobby',
                     ),
                     BottomNavigationBarItem(
-                      icon: Icon(Icons.chat),
-                      label: 'Chat',
+                      icon: const Icon(Icons.chat),
+                      label: "Chat ${(widget.client.currentGame.newMessages > 0 && selectedPage != Pages.chat ? '(+${widget.client.currentGame.newMessages})' : '')}",
                     ),
-                    BottomNavigationBarItem(
+                    const BottomNavigationBarItem(
                       icon: Icon(Icons.settings),
                       label: 'Options',
                     ),
@@ -156,10 +156,13 @@ class _MoleHomePageState extends State<MoleHomePage> {
                     if (!Dialogs.dialog) {
                       setState(() {
                         selectedIndex = value;
-                        selectedPage = Pages.values.elementAt(selectedIndex);
-                        if (selectedPage == Pages.options) {
-                          widget.client.send("get_opt",
-                              data: widget.client.currentGame.title);
+                        Pages newPage = Pages.values.elementAt(selectedIndex);
+                        if (selectedPage == Pages.chat || newPage == Pages.chat) {
+                          client.currentGame.newMessages = 0;
+                        }
+                        selectedPage = newPage;
+                        if (selectedPage == Pages.options && client.currentGame.exists) {
+                          widget.client.send("get_opt",data: widget.client.currentGame.title);
                         }
                       });
                     }

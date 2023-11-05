@@ -25,7 +25,10 @@ class MoleGame {
   List<dynamic> chat = [];
   dynamic jsonData;
   bool exists = true;
-  MoleGame(this.title);
+  int newMessages = 0;
+  MoleGame(this.title) {
+    if (title == "") exists = false;
+  }
 
   SideToMove sideToMove() {
     return fen.split(" ")[1] == "w" ? SideToMove.white : SideToMove.black;
@@ -35,8 +38,8 @@ class MoleGame {
 class MoleClient extends ChangeNotifier {
   Map<String,Function> functionMap = {};
   Map<String,bool> waitMap = {};
-  static const String dummyTitle= "?";
-  MoleGame currentGame = MoleGame(dummyTitle);
+  static const String servString = "serv";
+  MoleGame currentGame = MoleGame("");
   bool orientWhite = true;
   Map<String,MoleGame> games = {};
   String lichessToken = "";
@@ -46,7 +49,7 @@ class MoleClient extends ChangeNotifier {
   bool starting = true;
   Map<String, dynamic> options = {};
   bool modal = false;
-  List<dynamic> servLog = []; //List<dynamic>.empty(growable: true);
+  List<dynamic> lobbyLog = []; //List<dynamic>.empty(growable: true);
   List<dynamic> topPlayers = [];
   Map<String,dynamic> playerHistory = {};
   bool sound = true;
@@ -70,8 +73,8 @@ class MoleClient extends ChangeNotifier {
       "game_update" : handleGameUpdate,
       "move" : handleMove,
       "status" : handleStatus,
-      "serv_msg" : handleGameMsg,
-      "game_msg" : handleGameMsg,
+      "serv_msg" : handleTxtMsg,
+      "game_msg" : handleTxtMsg,
       "chat" : handleChat,
       "err_msg" : handleErrorMessage,
       "phase" : handlePhase,
@@ -153,7 +156,6 @@ class MoleClient extends ChangeNotifier {
       getGame(data["source"]).currentVotes = data["list"];
   }
 
-  //TODO: fix server to work with these
   void handleDefection(data) {
     if (getGame(data["source"]) == currentGame) {
       _playClip("defect");
@@ -203,8 +205,7 @@ class MoleClient extends ChangeNotifier {
     _updateMoveHistory(data,game);
   }
 
-  void sendMove(Move move, {bool? isDrop, bool? isPremove}) {
-    //print("Sending move: ${move.from}${move.to}");
+  void sendMove(Move move, {bool? isDrop, bool? isPremove}) { //print("Sending move: ${move.from}${move.to}");
     final prom = move.promotion.toString(); //print(prom);
     send("move",data: {
       "move" : "${move.from}${move.to}",
@@ -254,10 +255,7 @@ class MoleClient extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _logout() {
-    send("logout");
-    notifyListeners();
-  }
+  //void _logout() { send("logout"); notifyListeners(); }
 
   void handleStatus(data) async {
     String msg = data["msg"];
@@ -271,33 +269,33 @@ class MoleClient extends ChangeNotifier {
   }
 
   void handleErrorMessage(data) {
-    final source = games[data['source']]?.title ?? 'Serv:';
+    final source = games[data['source']]?.title ?? servString;
     _playClip("doink");
     Dialogs.popup("$source: ${data['msg']}");
-    //servLog.add({"msg": data['msg'],"player": "serv","color": "FF0000"});
   }
 
   void handleChat(data) {
-    if (data["source"] == "serv") {
+    if (data["source"] == servString) {
       data["msg"] = "${data["user"] ?? "Serv"}: ${data["msg"]}";
     }
     else {
       data["msg"] = "${data["player"]?["user"]?["name"] ?? "WTF"}: ${data["msg"]}";
     }
-    handleGameMsg(data);
+    handleTxtMsg(data);
   }
 
-  void handleGameMsg(data) {  //print("Game Message: ${data["msg"]}");
-    MoleGame? game = games[data["source"]];
-    if (game == null) { //server message
-      servLog.add({"msg": data['msg'],"player": "serv","color": "AAAA00"});
+  void handleTxtMsg(data) {  //print("Game Message: $data");
+    MoleGame? game = data["source"] == servString ? null : games[ data["source"]];
+    if (game == null) { //lobby message
+      lobbyLog.add({"msg": data['msg'],"player": servString,"color": "AAAA00"});
     }
     else {
       game.chat.add({
         "msg": data["msg"],
-        "player": data["player"]?["user"]?["name"] ?? "serv",
+        "player": data["player"]?["user"]?["name"] ?? servString,
         "color": data["player"]?["play_col"] ?? "#FFFFFF"
       });
+      if (data["player"] != null) game.newMessages++;
     }
   }
 
@@ -313,14 +311,13 @@ class MoleClient extends ChangeNotifier {
       getGame(game["title"]).exists = true;
     }
     games.removeWhere((key, value) => !value.exists);
-    if (currentGame.title == dummyTitle && games.keys.isNotEmpty) {
+    if (!currentGame.exists && games.keys.isNotEmpty) {
       switchGame(games.keys.first);
     }
   }
 
   MoleGame getGame(String title) {
     return games.putIfAbsent(title, () {
-      //if (currentGame.title == dummyTitle) currentGame = moleGame;
       return MoleGame(title);
     });
   }
@@ -334,7 +331,6 @@ class MoleClient extends ChangeNotifier {
     final history = json["history"];
     if (currentFEN != null) {
       game.fen = currentFEN;
-      //if (currentGame == game) mainBoardController.loadFen(game.fen);
     }
     if (time != null && time > 0) _countdown(time,game);
     if (history != null) _updateMoveHistory(json,game);
@@ -368,7 +364,6 @@ class MoleClient extends ChangeNotifier {
     }
     else if (data["move_votes"] != null) {
       if (game.moves.length + 1 == data["ply"]) {
-        //print("Adding to movelist: ${data["move"]}");
         game.moves.add(data["move_votes"]);
       }
       else if ((DateTime.timestamp().millisecondsSinceEpoch - lastUpdate) > 5000) {
@@ -380,11 +375,11 @@ class MoleClient extends ChangeNotifier {
 
   void newGame(String title) { print("Create game: $title");
     _playClip("bump");
-    send("newgame",data :{"game": title}); //, "color": 0});
+    send("newgame",data :{"game": title});
   }
 
-  void sendChat(String msg) {
-    send("chat",data: { "msg": msg, "source": currentGame.title });
+  void sendChat(String msg, bool lobby) {
+    send("chat",data: { "msg": msg, "source": lobby ? servString : currentGame.title });
   }
 
   void handleMsg(String msg) { //print("Incoming msg: $msg");
