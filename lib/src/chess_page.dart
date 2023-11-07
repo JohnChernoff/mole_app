@@ -1,4 +1,5 @@
 import 'package:chessground/chessground.dart';
+import 'package:mole_app/src/options_page.dart';
 import 'game_history_page.dart';
 import 'mole_client.dart';
 import 'package:flutter/material.dart';
@@ -100,9 +101,9 @@ class CurrentBoardPage extends StatelessWidget {
           ),
           SizedBox(width: screenWidth, height: 8),
           Board(
-            settings: const BoardSettings(
-                pieceAssets: PieceSet.californiaAssets,
-                colorScheme: BoardColorScheme.horsey
+            settings: BoardSettings(
+                pieceAssets: PieceSet.values[OptionsPage.pieceSetIndex].assets,
+                colorScheme: OptionsPage.boardColorSchemes[OptionsPage.boardColorScheme] ?? BoardColorScheme.horsey,
             ),
             size: screenWidth,
             data: BoardData(

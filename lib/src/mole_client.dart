@@ -5,6 +5,7 @@ import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dialogs.dart';
 import 'lichess_login.dart';
@@ -60,12 +61,20 @@ class MoleClient extends ChangeNotifier {
   bool isLoggedIn = false;
   String address;
   late MoleSock sock;
+  PackageInfo? packageInfo;
 
   MoleClient(this.address) {
+
+    PackageInfo.fromPlatform().then((PackageInfo info) {
+        packageInfo = info;
+        print(info);
+    });
+
     SharedPreferences.getInstance().then((sp) {
         prefs = sp;
         lichessToken = prefs?.getString('token') ?? "";
     });
+
     functionMap = {
       "no_log" : loggedOut,
       "log_OK" : loggedIn,
@@ -427,9 +436,11 @@ class MoleClient extends ChangeNotifier {
     });
   }
 
+  void update() {
+    notifyListeners();
+  }
+
 }
-
-
 
 extension HexColor on Color {
   /// String is in the format "aabbcc" or "ffaabbcc" with an optional leading "#".

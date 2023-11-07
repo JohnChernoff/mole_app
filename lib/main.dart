@@ -26,18 +26,20 @@ main()  {
 }
 
 class MoleApp extends StatelessWidget {
+  static Color appColor = Colors.black;
   final MoleClient client;
   const MoleApp({super.key,required this.client});
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    print("Building main app...");
     return ChangeNotifierProvider(
-        create: (context) => client, //MoleClient("wss://molechess.com/server"),
+        create: (context) => client,
         child: MaterialApp(
           navigatorKey: globalNavigatorKey,
           title: 'Mole Chess',
           theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.black),
+            colorScheme: ColorScheme.fromSeed(seedColor: MoleApp.appColor),
             useMaterial3: true,
           ),
           home: MoleHomePage(client: client),
@@ -81,7 +83,9 @@ class _MoleHomePageState extends State<MoleHomePage> {
         .of(context)
         .colorScheme;
     Widget page;
-    if (selectedPage == Pages.splash && client.isLoggedIn) {
+    if (!client.isLoggedIn) {
+      selectedPage = Pages.splash;
+    } else if (selectedPage == Pages.splash && client.isLoggedIn) {
       selectedPage = Pages.lobby;
     }
     switch (selectedPage) {

@@ -22,10 +22,10 @@ class SplashPage extends StatelessWidget {
                 ),
               )
             : Image.asset(
-                "assets/images/mole_splash.png",
-                //"assets/images/mole_spin.gif",
+                "assets/images/mole_splash.png", //"assets/images/mole_spin.gif",
                 width: 1000,
                 height: 580,
+                //frameBuilder:  (BuildContext context, Widget child, int? frame, bool? wasSynchronouslyLoaded) { print(frame); return child; }
               ),
       ],
     );

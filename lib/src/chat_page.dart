@@ -4,7 +4,7 @@ import 'mole_client.dart';
 class ChatPage extends StatefulWidget {
   final MoleClient client;
   static bool lobby = false;
-  static bool hideServerMessages = true;
+  static bool serverMessages = false;
 
   const ChatPage(this.client, {super.key});
 
@@ -25,11 +25,11 @@ class _ChatPageState extends State<ChatPage> {
           children: [
             Flexible(
               child: CheckboxListTile(
-                title: const Text("Hide Server Messages"),
-                value: ChatPage.hideServerMessages,
+                title: const Text("Server Messages"),
+                value: ChatPage.serverMessages,
                 onChanged: (newValue) {
                   setState(() {
-                    ChatPage.hideServerMessages = newValue ?? false;
+                    ChatPage.serverMessages = newValue ?? false;
                   });
                 },
                 controlAffinity:
@@ -45,7 +45,7 @@ class _ChatPageState extends State<ChatPage> {
           ],
         ),
         CheckboxListTile(
-          title: const Text("Show Lobby Messages"),
+          title: const Text("Lobby Messages"),
           value: ChatPage.lobby,
           onChanged: (newValue) {
             setState(() {
@@ -78,7 +78,7 @@ class _ChatPageState extends State<ChatPage> {
                   String color = chat["color"];
                   String msg = chat["msg"];
                   return Container(
-                    height: (ChatPage.hideServerMessages &&
+                    height: (!ChatPage.serverMessages &&
                             chat["player"] == "serv" &&
                             !ChatPage.lobby)
                         ? 0
