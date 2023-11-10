@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "855913827317",
+    "project_id": "molechess-bc009",
+    "storage_bucket": "molechess-bc009.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:855913827317:android:746800b196487559daeebc",
+        "android_client_info": {
+          "package_name": "org.chernovia.mole_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC1b4G1ZxhzBCRcJrauM-Jp0XqShaJ0MKI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

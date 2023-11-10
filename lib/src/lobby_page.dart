@@ -97,7 +97,7 @@ class LobbyPage extends StatelessWidget {
                   );
                 }).toList(),
                 onChanged: (String? title) {
-                  client.switchGame(title);
+                  client.switchGame(title ?? "");
                 }),
           ],
         ),

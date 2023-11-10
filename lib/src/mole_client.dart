@@ -119,10 +119,11 @@ class MoleClient extends ChangeNotifier {
     sock = MoleSock(address,connected,handleMsg,disconnected);
   }
 
-  void switchGame(String? title) {
+  void switchGame(String title) {
     if (games[(title ?? "")] != null) {
+      if (currentGame.exists) send("unobs",data:currentGame.title);
       currentGame = games[title]!;
-      send("update",data:title);
+      send("obsgame",data:title); //send("update",data:title);
     }
   }
 
