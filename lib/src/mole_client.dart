@@ -2,17 +2,26 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:chessground/chessground.dart';
 import 'package:dartchess/dartchess.dart' hide Move;
 import 'package:fast_immutable_collections/fast_immutable_collections.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:rxdart/rxdart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../firebase_options.dart';
 import 'dialogs.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
 
+//TODO: obs selected game after leaving, etc.
+
+const kDebugMode = true;
+const noGameTitle = "";
 const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 enum SideToMove { white, black, none}
+late final String? pushToken;
 
 class MoleGame {
   final String title;
@@ -28,7 +37,7 @@ class MoleGame {
   bool exists = true;
   int newMessages = 0;
   MoleGame(this.title) {
-    if (title == "") exists = false;
+    if (title == noGameTitle) exists = false;
   }
 
   SideToMove sideToMove() {
@@ -40,7 +49,7 @@ class MoleClient extends ChangeNotifier {
   Map<String,Function> functionMap = {};
   Map<String,bool> waitMap = {};
   static const String servString = "serv";
-  MoleGame currentGame = MoleGame("");
+  MoleGame noGame = MoleGame(noGameTitle);
   bool orientWhite = true;
   Map<String,MoleGame> games = {};
   String lichessToken = "";
@@ -53,21 +62,24 @@ class MoleClient extends ChangeNotifier {
   List<dynamic> lobbyLog = []; //List<dynamic>.empty(growable: true);
   List<dynamic> topPlayers = [];
   Map<String,dynamic> playerHistory = {};
-  bool sound = true;
+  bool sound = false;
   final audio = AudioPlayer();
   double volume = .5;
   bool confirmAI = false;
   bool isConnected = false;
   bool isLoggedIn = false;
   String address;
-  late MoleSock sock;
   PackageInfo? packageInfo;
+  late MoleSock sock;
+  late MoleGame currentGame;
 
   MoleClient(this.address) {
 
+    currentGame = noGame;
+
     PackageInfo.fromPlatform().then((PackageInfo info) {
         packageInfo = info;
-        print(info);
+        logMsg(info);
     });
 
     SharedPreferences.getInstance().then((sp) {
@@ -80,6 +92,7 @@ class MoleClient extends ChangeNotifier {
       "log_OK" : loggedIn,
       "games_update" : handleGamesUpdate,
       "game_update" : handleGameUpdate,
+      //"obs" : handleGameUpdate, "unobs" : handleGameUpdate,
       "move" : handleMove,
       "status" : handleStatus,
       "serv_msg" : handleTxtMsg,
@@ -88,6 +101,7 @@ class MoleClient extends ChangeNotifier {
       "err_msg" : handleErrorMessage,
       "phase" : handlePhase,
       "join" : handleJoin,
+      "part" : handlePart,
       "role" : handleRole,
       "defection" : handleDefection,
       "rampage" : handleRampage,
@@ -96,12 +110,59 @@ class MoleClient extends ChangeNotifier {
       "votelist" : handleVotelist,
       "side" : handleSide,
       "top" : handleTop,
-      "history" : handlePlayerHistory
+      "history" : handlePlayerHistory,
     };
     for (var key in functionMap.keys) {
       waitMap.putIfAbsent(key, () => false);
     }
-    _connect();
+    initFire().then((value) { _connect(); } );
+  }
+
+  Future<void> initFire() async {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    final messaging = FirebaseMessaging.instance;
+
+    final settings = await messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    if (kDebugMode) {
+      logMsg('Permission granted: ${settings.authorizationStatus}');
+    }
+
+    String? token = await messaging.getToken();
+
+    pushToken = token;
+
+    if (kDebugMode) {
+      logMsg('Registration Token=$token');
+    }
+
+    final messageStreamController = BehaviorSubject<RemoteMessage>();
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (kDebugMode) {
+        logMsg('Handling a foreground message: ${message.messageId}');
+        logMsg('Message data: ${message.data}');
+        logMsg('Message notification: ${message.notification?.title}');
+        logMsg('Message notification: ${message.notification?.body}');
+      }
+
+      messageStreamController.sink.add(message);
+    });
+
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    logMsg("Finished setting up firebase");
   }
 
 
@@ -115,15 +176,22 @@ class MoleClient extends ChangeNotifier {
 
   void _connect()  {
     _playTrack("intro");
-    print("Connecting to $address");
+    logMsg("Connecting to $address");
     sock = MoleSock(address,connected,handleMsg,disconnected);
   }
 
-  void switchGame(String title) {
-    if (games[(title ?? "")] != null) {
-      if (currentGame.exists) send("unobs",data:currentGame.title);
-      currentGame = games[title]!;
-      send("obsgame",data:title); //send("update",data:title);
+  void switchGame(String? title) {
+    final t = title ?? noGameTitle;
+    if (currentGame.title != t) {
+      if (games[t] != null) {
+        if (currentGame.exists) send("unobs",data:currentGame.title);
+        currentGame = games[t]!; // ?? noGame;
+        if (currentGame.exists ) send("obsgame",data:title); //send("update",data:title);
+      }
+      else {
+        currentGame = noGame;
+      }
+      logMsg("Switched to game: ${currentGame.title}");
     }
   }
 
@@ -204,6 +272,11 @@ class MoleClient extends ChangeNotifier {
     switchGame(data["title"]);
   }
 
+  void handlePart(data) { //print("Parting");
+    handleGameUpdate(data);
+    //switchGame(null);
+  }
+
   void handlePhase(data) { //print(data["phase"]);
     handleGameUpdate(data);
   }
@@ -211,7 +284,7 @@ class MoleClient extends ChangeNotifier {
   void handleMove(data) { //print("New move: ${data['move']}");
     final title = data["title"]; //print("Updating: $title");
     final MoleGame game = getGame(title);
-    if (game == currentGame) _playClip(game.jsonData["turn"] == 0 ? "move_black" : "move_white");
+    if (game == currentGame) _playClip(game.jsonData["turn"] == 0 ? "move_black" : "move_white"); //TODO: fix NPE
     _updateMoveHistory(data,game);
   }
 
@@ -238,7 +311,13 @@ class MoleClient extends ChangeNotifier {
   }
 
   void send(String type, { var data = "" }) {
-    sock.send(jsonEncode( { "type": type, "data": data } ) );
+    if (isConnected) {
+      sock.send(jsonEncode( { "type": type, "data": data } ) );
+    }
+    else {
+      _playClip("doink");
+      Dialogs.popup("Not connected to server");
+    }
   }
 
   void logoutFromLichess() {
@@ -260,7 +339,7 @@ class MoleClient extends ChangeNotifier {
   }
 
   void _login() {
-    print("Logging in with token");
+    logMsg("Logging in with token");
     send("login", data: lichessToken);
     notifyListeners();
   }
@@ -321,8 +400,9 @@ class MoleClient extends ChangeNotifier {
       getGame(game["title"]).exists = true;
     }
     games.removeWhere((key, value) => !value.exists);
-    if (!currentGame.exists && games.keys.isNotEmpty) {
-      switchGame(games.keys.first);
+    if (currentGame != noGame && !currentGame.exists) {
+      logMsg("No game selected");
+      currentGame = noGame; //switchGame(games.keys.first);
     }
   }
 
@@ -365,7 +445,7 @@ class MoleClient extends ChangeNotifier {
 
   void _updateMoveHistory(data, MoleGame game) {
     if (data["history"] != null) {
-      print("Updating history: ${game.title}");
+      logMsg("Updating history: ${game.title}");
       game.moves.clear();
       for (var votes in data["history"]) {
         game.moves.add(votes);
@@ -377,13 +457,13 @@ class MoleClient extends ChangeNotifier {
         game.moves.add(data["move_votes"]);
       }
       else if ((DateTime.timestamp().millisecondsSinceEpoch - lastUpdate) > 5000) {
-        print("Inconsistent move history, updating...");
+        logMsg("Inconsistent move history, updating...");
         send("update",data:game.title);
       }
     }
   }
 
-  void newGame(String title) { print("Create game: $title");
+  void newGame(String title) { //logMsg("Create game: $title");
     _playClip("bump");
     send("newgame",data :{"game": title});
   }
@@ -408,7 +488,7 @@ class MoleClient extends ChangeNotifier {
   }
 
   void connected() {
-    print("Connected!");
+    logMsg("Connected!");
     isConnected = true;
     if (!starting && lichessToken != "") {
       _login();
@@ -417,20 +497,21 @@ class MoleClient extends ChangeNotifier {
 
   void disconnected() {
     isConnected = false; isLoggedIn = false;
-    print("Disconnected: $userName");
+    logMsg("Disconnected: $userName");
     Dialogs.popup("Disconnected!  Log back in?").then((ok) {
       if (ok) _connect();
     });
   }
 
   void loggedIn(data) {
-    userName = data["name"]; print("Logged in: $userName");
+    userName = data["name"]; logMsg("Logged in: $userName");
     isLoggedIn = true;
     starting = false;
+    send("push_token",data: pushToken);
   }
 
   void loggedOut(data) {
-    print("Logged out: $userName");
+    logMsg("Logged out: $userName");
     isLoggedIn = false;
     Dialogs.popup("Logged out!  Log back in?").then((ok) {
       if (ok) _login();
@@ -439,6 +520,20 @@ class MoleClient extends ChangeNotifier {
 
   void update() {
     notifyListeners();
+  }
+
+  void logMsg(var msg) {
+    print(msg);
+  }
+
+  Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+    if (kDebugMode) {
+      logMsg("Handling a background message: ${message.messageId}");
+      logMsg('Message data: ${message.data}');
+      logMsg('Message notification: ${message.notification?.title}');
+      logMsg('Message notification: ${message.notification?.body}');
+    }
+    await Firebase.initializeApp();
   }
 
 }
@@ -463,3 +558,5 @@ extension HexColor on Color {
       '${green.toRadixString(16).padLeft(2, '0')}'
       '${blue.toRadixString(16).padLeft(2, '0')}';
 }
+
+

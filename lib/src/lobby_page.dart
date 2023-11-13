@@ -1,3 +1,4 @@
+import 'package:fast_immutable_collections/fast_immutable_collections.dart';
 import 'package:flutter/material.dart';
 import 'package:mole_app/src/player_history_page.dart';
 import 'package:mole_app/src/top_page.dart';
@@ -89,15 +90,16 @@ class LobbyPage extends StatelessWidget {
             const SizedBox(width: 8,),
             DropdownButton(
                 value: client.currentGame.exists ? client.currentGame.title : null,
-                items:
-                client.games.keys.map<DropdownMenuItem<String>>((String title) { //print("Adding: $title");
+                items: [
+                  const DropdownMenuItem<String>(value: noGameTitle, child: Text(noGameTitle))
+                ].concat(client.games.keys.map<DropdownMenuItem<String>>((String title) {  //print("Adding: $title");
                   return DropdownMenuItem<String>(
                     value: title,
                     child: Text(title),
                   );
-                }).toList(),
+                }).toList()),
                 onChanged: (String? title) {
-                  client.switchGame(title ?? "");
+                  client.switchGame(title); client.update();
                 }),
           ],
         ),

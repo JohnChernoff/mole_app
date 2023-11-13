@@ -9,13 +9,15 @@ import 'package:mole_app/src/options_page.dart';
 import 'package:mole_app/src/splash_page.dart';
 import 'package:provider/provider.dart';
 
-const remoteAddress = "wss://molechess.com/server";
-const localServer = false;
 enum Platforms { android, ios, windows, web }
 const platform = Platforms.android;
+const remoteAddress = "wss://molechess.com/server";
+const localServer = false;
 
-main()  {
+
+Future<void> main() async  {
   WidgetsFlutterBinding.ensureInitialized();
+
   final address = switch(platform) {
     Platforms.android => localServer ? "ws://10.0.2.2:5555" : remoteAddress,
     Platforms.ios => localServer ? "ws://localhost:5555" : remoteAddress,
@@ -32,7 +34,7 @@ class MoleApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    print("Building main app...");
+    client.logMsg("Building main app...");
     return ChangeNotifierProvider(
         create: (context) => client,
         child: MaterialApp(
@@ -180,7 +182,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
   }
 
   void _countdownLoop(int millis) async {
-    print("Starting countdown"); //int tick = 0;
+    widget.client.logMsg("Starting countdown"); //int tick = 0;
     countdown = true;
     while(countdown) {
       int t = selectedPage == Pages.chess ? millis : 1000;
@@ -191,14 +193,14 @@ class _MoleHomePageState extends State<MoleHomePage> {
         }
         else {
           if (selectedPage == Pages.chess) {
-            widget.client.notifyListeners();
+            widget.client.update();
           }
         }
        //print("tick: ${tick++}");
        //print("tick: ${widget.client.currentGame.countdown.toString()}");
       });
     }
-    print("Ending countdown");
+    widget.client.logMsg("Ending countdown");
   }
 }
 
