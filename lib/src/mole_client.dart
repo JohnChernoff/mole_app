@@ -15,12 +15,11 @@ import 'dialogs.dart';
 import 'lichess_login.dart';
 import 'mole_sock.dart';
 
-//TODO: obs selected game after leaving, etc.
-
 const kDebugMode = true;
 const noGameTitle = "";
 const initialFen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-enum SideToMove { white, black, none}
+enum SideToMove { white, black, none }
+enum NotificationType { ready, create, start, login }
 late final String? pushToken;
 
 class MoleGame {
@@ -46,6 +45,14 @@ class MoleGame {
 }
 
 class MoleClient extends ChangeNotifier {
+
+  Map<String,bool> notifications = {
+    NotificationType.ready.name : true,
+    NotificationType.create.name : true,
+    NotificationType.start.name: true,
+    NotificationType.login.name : true,
+  };
+
   Map<String,Function> functionMap = {};
   Map<String,bool> waitMap = {};
   static const String servString = "serv";
@@ -143,10 +150,6 @@ class MoleClient extends ChangeNotifier {
 
     pushToken = token;
 
-    if (kDebugMode) {
-      logMsg('Registration Token=$token');
-    }
-
     final messageStreamController = BehaviorSubject<RemoteMessage>();
 
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
@@ -156,8 +159,8 @@ class MoleClient extends ChangeNotifier {
         logMsg('Message notification: ${message.notification?.title}');
         logMsg('Message notification: ${message.notification?.body}');
       }
-
       messageStreamController.sink.add(message);
+      Dialogs.popup(message.notification?.body ?? "Unknown notification");
     });
 
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
@@ -507,13 +510,14 @@ class MoleClient extends ChangeNotifier {
     userName = data["name"]; logMsg("Logged in: $userName");
     isLoggedIn = true;
     starting = false;
-    send("push_token",data: pushToken);
+    send("push_token",
+        data: { "token": pushToken, "notifications": notifications });
   }
 
   void loggedOut(data) {
     logMsg("Logged out: $userName");
     isLoggedIn = false;
-    Dialogs.popup("Logged out!  Log back in?").then((ok) {
+    Dialogs.popup("Logged out! Log back in?").then((ok) {
       if (ok) _login();
     });
   }
@@ -522,20 +526,13 @@ class MoleClient extends ChangeNotifier {
     notifyListeners();
   }
 
-  void logMsg(var msg) {
+  void updateNotifications() { //logMsg(jsonEncode(notifications.toString()));
+    send("notify",data: notifications);
+  }
+
+  static void logMsg(var msg) {
     print(msg);
   }
-
-  Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-    if (kDebugMode) {
-      logMsg("Handling a background message: ${message.messageId}");
-      logMsg('Message data: ${message.data}');
-      logMsg('Message notification: ${message.notification?.title}');
-      logMsg('Message notification: ${message.notification?.body}');
-    }
-    await Firebase.initializeApp();
-  }
-
 }
 
 extension HexColor on Color {
@@ -559,4 +556,12 @@ extension HexColor on Color {
       '${blue.toRadixString(16).padLeft(2, '0')}';
 }
 
-
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  if (kDebugMode) {
+    MoleClient.logMsg("Handling a background message: ${message.messageId}");
+    MoleClient.logMsg('Message data: ${message.data}');
+    MoleClient.logMsg('Message notification: ${message.notification?.title}');
+    MoleClient.logMsg('Message notification: ${message.notification?.body}');
+  }
+  await Firebase.initializeApp();
+}

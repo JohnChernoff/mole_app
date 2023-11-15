@@ -34,7 +34,7 @@ class MoleApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    client.logMsg("Building main app...");
+    MoleClient.logMsg("Building main app...");
     return ChangeNotifierProvider(
         create: (context) => client,
         child: MaterialApp(
@@ -182,7 +182,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
   }
 
   void _countdownLoop(int millis) async {
-    widget.client.logMsg("Starting countdown"); //int tick = 0;
+    MoleClient.logMsg("Starting countdown"); //int tick = 0;
     countdown = true;
     while(countdown) {
       int t = selectedPage == Pages.chess ? millis : 1000;
@@ -200,7 +200,7 @@ class _MoleHomePageState extends State<MoleHomePage> {
        //print("tick: ${widget.client.currentGame.countdown.toString()}");
       });
     }
-    widget.client.logMsg("Ending countdown");
+    MoleClient.logMsg("Ending countdown");
   }
 }
 

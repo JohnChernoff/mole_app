@@ -4,7 +4,7 @@ import 'package:numberpicker/numberpicker.dart';
 import 'mole_client.dart';
 
 class OptionsPage extends StatefulWidget {
-  static int pieceSetIndex = 14;
+  static int pieceSetIndex = 15;
   static String boardColorScheme = "Horsey";
   static Map<String, BoardColorScheme> boardColorSchemes = {
     "Horsey": BoardColorScheme.horsey,
@@ -48,7 +48,7 @@ class _OptionsPageState extends State<OptionsPage> {
             child: const Text("Submit Game Options")),
         SizedBox(
           width: screenWidth,
-          height: screenHeight / 2.25,
+          height: screenHeight / 3,
           child: ListView.builder(
             itemCount: widget.client.options.keys.length,
             itemBuilder: (context, index) {
@@ -127,6 +127,31 @@ class _OptionsPageState extends State<OptionsPage> {
                             if (!b) widget.client.audio.stop();
                           })),
                 ],
+              ),
+              const Text("Notifications:  "),
+              SizedBox(
+                width: screenWidth,
+                height: 50,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.all(8),
+                  itemCount: widget.client.notifications.keys.length,
+                  itemBuilder: (BuildContext context, int index) {
+                    return Row(
+                      children: [
+                        Text(widget.client.notifications.keys.elementAt(index)),
+                        Checkbox(
+                            value: widget.client.notifications.values.elementAt(index),
+                            onChanged:(b) => setState(() {
+                              widget.client.notifications[widget.client.notifications.keys.elementAt(index)] = b ?? false;
+                              widget.client.updateNotifications();
+                            })
+                        ),
+                      ],
+                    );
+                  },
+                  separatorBuilder: (BuildContext context, int index) => const Divider(),
+                ),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
